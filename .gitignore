@@ -1,0 +1,23 @@
+# Compiler files
+cache/
+out/
+
+# Commonly ignored directories
+.logs/
+.ignore/
+
+# Broadcast receipts and dry-run caches. Do not commit.
+/broadcast/
+
+.DS_Store
+
+# Docs
+docs/
+
+# Dotenv file. Never commit a key.
+.env
+.env.*
+!.env.example
+
+# Address dumps. Roots and the leaf formula stay in the markdown.
+snapshot/*.json

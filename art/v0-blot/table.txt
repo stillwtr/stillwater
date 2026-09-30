@@ -1,0 +1,1 @@
+t = 28 + 11 * floor(log2(nonce+1))

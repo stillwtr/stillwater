@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>clock compare</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.4rem; }
+    h2 { font-weight: normal; font-size: 1rem; margin: 1.2rem 0 0.5rem; }
+    p { margin: 0 0 1rem; max-width: 46rem; line-height: 1.4; }
+    .row5 {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8rem, 12rem));
+      gap: 1rem;
+    }
+    figure { margin: 0; }
+    canvas {
+      width: 128px;
+      height: 128px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    @media (min-width: 720px) {
+      canvas { width: 256px; height: 256px; }
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; line-height: 1.35; white-space: pre-line; }
+    a { color: #D9D3C7; }
+  </style>
+</head>
+<body>
+  <h1>clock compare</h1>
+  <p>row1 = stone light off · row2 = light on</p>
+  <p>Same Pewter seed, nonce 4096. <a href="sheet.html">nonce sheet</a> · <a href="sheet-clock.html">clock</a> · <a href="sheet-freeze.html">freeze</a> · <a href="sheet-clock-compare.html">compare</a></p>
+  <h2>sun off</h2>
+  <div class="row5" id="off"></div>
+  <h2>sun on</h2>
+  <div class="row5" id="on"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script src="clock.js"></script>
+  <script>
+    function pad(n) {
+      n = Math.floor(n);
+      return (n < 10 ? "0" : "") + n;
+    }
+    function isoOf(when) {
+      var min = Math.round((when.hour % 1) * 60);
+      var hour = Math.floor(when.hour);
+      if (min === 60) { hour += 1; min = 0; }
+      return when.y + "-" + pad(when.mo) + "-" + pad(when.d) + "T" + pad(hour) + ":" + pad(min) + ":00Z";
+    }
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var found = [null, null, null];
+    var n = 1;
+    var bytes, d;
+    while (found[1] === null) {
+      bytes = addrOf(n);
+      d = Plate.derive(bytes);
+      if (found[d.palette] === null) found[d.palette] = bytes;
+      n += 1;
+    }
+    var seed = found[1];
+    var now = new Date();
+    var plates = [
+      { label: "A", when: { y: 2026, mo: 6, d: 21, hour: 12 } },
+      { label: "B", when: { y: 2026, mo: 6, d: 21, hour: 0 } },
+      { label: "C", when: { y: 2026, mo: 12, d: 21, hour: 12 } },
+      { label: "N", when: { y: 2026, mo: 12, d: 21, hour: 0 } },
+      { label: "D", when: { y: 2026, mo: 3, d: 21, hour: 12 } },
+      { label: "E", when: {
+        y: now.getUTCFullYear(),
+        mo: now.getUTCMonth() + 1,
+        d: now.getUTCDate(),
+        hour: now.getUTCHours() + now.getUTCMinutes() / 60
+      } }
+    ];
+    var base = Plate.indices(seed, 4096, 0);
+    var hs = Plate.lightHeights(seed, 0);
+    var grains = Plate.grains(seed, 0);
+    function addRow(parent, sunOn) {
+      plates.forEach(function (item) {
+        var sun = PlateClock.polar(item.when);
+        var grid = PlateClock.rake(base, item.when, hs, grains, sunOn);
+        var shadowN = 0;
+        var warmN = 0;
+        var glints = 0;
+        var i;
+        for (i = 0; i < grid.length; i++) {
+          if (grid.shadow && grid.shadow[i]) shadowN++;
+          if (grid.warm && grid.warm[i]) warmN++;
+          if (grid[i] === 9) glints++;
+        }
+        var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+        var az = Math.round(sun.azDeg) + "°";
+        var fig = document.createElement("figure");
+        var canvas = document.createElement("canvas");
+        var cap = document.createElement("figcaption");
+        canvas.width = 128;
+        canvas.height = 128;
+        cap.textContent = [
+          item.label + " · " + (sunOn ? "sunOn" : "sunOff"),
+          isoOf(item.when),
+          "elev " + sun.elev.toFixed(1) + "° · az " + az + " · B " + (sunOn ? (grid.budget || 0) : 0),
+          (tenths / 10).toFixed(1) + "% water",
+          "nShadow " + shadowN + " · nWarm " + warmN + " · nGlints " + glints
+        ].join("\n");
+        fig.appendChild(canvas);
+        fig.appendChild(cap);
+        parent.appendChild(fig);
+        PlateClock.paint(canvas, seed, 4096, 0, item.when, sunOn);
+      });
+    }
+    addRow(document.getElementById("off"), false);
+    addRow(document.getElementById("on"), true);
+  </script>
+</body>
+</html>

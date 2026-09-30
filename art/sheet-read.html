@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>read</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.8rem; }
+    .row5 { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    figure { margin: 0; }
+    canvas {
+      width: 256px;
+      height: 256px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>A · B · C · D · E</h1>
+  <div class="row5" id="row"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script>
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var found = [null, null, null];
+    var n = 1;
+    var bytes, fam;
+    while (found[1] === null) {
+      bytes = addrOf(n);
+      fam = Plate.derive(bytes).palette;
+      if (found[fam] === null) found[fam] = bytes;
+      n += 1;
+    }
+    var seed = found[1];
+    function put(canvas, paintAt) {
+      var ctx = canvas.getContext("2d");
+      var img = ctx.createImageData(128, 128);
+      var i, c, o;
+      for (i = 0; i < 128 * 128; i++) {
+        c = paintAt(i);
+        o = i * 4;
+        img.data[o] = c[0];
+        img.data[o + 1] = c[1];
+        img.data[o + 2] = c[2];
+        img.data[o + 3] = 255;
+      }
+      canvas.width = 128;
+      canvas.height = 128;
+      ctx.putImageData(img, 0, 0);
+    }
+    function add(paintAt, grid) {
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var fig = document.createElement("figure");
+      var canvas = document.createElement("canvas");
+      var cap = document.createElement("figcaption");
+      cap.textContent = "Pewter · 4096 · " + (tenths / 10).toFixed(1) + "%";
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      document.getElementById("row").appendChild(fig);
+      put(canvas, paintAt);
+    }
+    var pal = Plate.PALETTES[1].rgb;
+    var soot = Plate.indices(seed, 4096, 0);
+    var wet = Plate.indices(seed, 4096, 0, 0, 28);
+    var hs = Plate.heights(seed, 0);
+    var grains = Plate.grains(seed, 0);
+    var well = Plate.pitWell(wet, hs);
+    var clump = Plate.clumpWell(wet, hs);
+    var table = Plate.waterTable(4096, 0);
+    add(function (i) { return pal[soot[i]]; }, soot);
+    add(function (i) {
+      if (wet[i] <= 1) return Plate.glassRgb(wet[i], grains[i]);
+      return pal[wet[i]];
+    }, wet);
+    add(function (i) {
+      var y = Math.trunc(i / 128);
+      var x = i - y * 128;
+      return Plate.litAt(wet, i, hs[i], grains[i], x, y, well[i], table, 28, pal);
+    }, wet);
+    add(function (i) {
+      var y = Math.trunc(i / 128);
+      var x = i - y * 128;
+      return Plate.litAt(wet, i, hs[i], grains[i], x, y, clump[i], table, 28, pal);
+    }, wet);
+    var law = Plate.lawRgb(wet, hs, grains, table, 28, pal);
+    add(function (i) {
+      return [law[i * 3], law[i * 3 + 1], law[i * 3 + 2]];
+    }, wet);
+  </script>
+</body>
+</html>

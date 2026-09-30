@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Walk</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.6rem; letter-spacing: 0.04em; margin: 0 0 0.8rem; }
+    #curve { margin: 0 0 1rem; font-size: 0.85rem; line-height: 1.4; }
+    .row, .forced { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-start; }
+    .forced { gap: 0.65rem; margin-top: 1rem; }
+    figure { margin: 0; }
+    input {
+      display: block;
+      width: min(22rem, 100%);
+      box-sizing: border-box;
+      margin-bottom: 0.45rem;
+      background: #14181A;
+      color: #D9D3C7;
+      border: 1px solid #3a4038;
+      font: inherit;
+      padding: 0.45rem 0.55rem;
+    }
+    canvas {
+      display: block;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .row canvas { width: 256px; height: 256px; }
+    .forced canvas { width: 112px; height: 112px; }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; white-space: pre-line; }
+    #pace { margin: 0.8rem 0 0; font-size: 0.75rem; letter-spacing: 0.08em; }
+    #state { margin: 0.35rem 0 0; font-size: 0.85rem; letter-spacing: 0.08em; cursor: pointer; }
+    @media (max-width: 720px) {
+      .row canvas { width: 200px; height: 200px; }
+      .forced canvas { width: 96px; height: 96px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>The Walk</h1>
+  <p id="curve"></p>
+  <div class="row" id="row"></div>
+  <div class="forced" id="forced"></div>
+  <p id="pace"></p>
+  <p id="state"></p>
+  <script src="../art/keccak256.js"></script>
+  <script src="../art/palettes.js"></script>
+  <script src="../art/render.js"></script>
+  <script src="walk.js"></script>
+</body>
+</html>

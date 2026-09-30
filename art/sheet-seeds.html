@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>seeds</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.8rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 1rem; }
+    figure { margin: 0; }
+    canvas {
+      width: 160px;
+      height: 160px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="row" id="row"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script>
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var seeds = [];
+    var n = 1;
+    var bytes;
+    while (seeds.length < 8) {
+      bytes = addrOf(n);
+      if (Plate.derive(bytes).palette === 1) seeds.push(bytes);
+      n += 1;
+    }
+    var row = document.getElementById("row");
+    seeds.forEach(function (seed) {
+      var grid = Plate.indices(seed, 4096, 0);
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var fig = document.createElement("figure");
+      var canvas = document.createElement("canvas");
+      var cap = document.createElement("figcaption");
+      cap.textContent = "Pewter · 4096 · " + (tenths / 10).toFixed(1) + "%";
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      row.appendChild(fig);
+      Plate.paint(canvas, seed, 4096, 0);
+    });
+  </script>
+</body>
+</html>

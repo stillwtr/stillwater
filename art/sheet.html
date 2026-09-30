@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>plates</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.4rem; }
+    h2 { font-weight: normal; font-size: 1rem; margin: 1.4rem 0 0.6rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+      gap: 1.25rem 1rem;
+    }
+    .row3, .row5 {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8rem, 12rem));
+      gap: 1rem;
+    }
+    figure { margin: 0; }
+    canvas {
+      width: 128px;
+      height: 128px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    @media (min-width: 720px) {
+      canvas { width: 256px; height: 256px; }
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; line-height: 1.35; }
+    code { font-family: ui-monospace, monospace; font-size: 0.72rem; color: #8a9088; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>plates</h1>
+  <div id="families"></div>
+  <h2>live keys</h2>
+  <div class="row3" id="live-keys"></div>
+  <h2>nonce probe</h2>
+  <p id="probe-log"></p>
+  <pre id="probe-note"></pre>
+  <div class="row3" id="probe"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script>
+    function addPlate(parent, lines, draw) {
+      var fig = document.createElement("figure");
+      var canvas = document.createElement("canvas");
+      canvas.width = 128;
+      canvas.height = 128;
+      var cap = document.createElement("figcaption");
+      lines.forEach(function (line, i) {
+        if (i) cap.appendChild(document.createElement("br"));
+        if (line && line.code) {
+          var code = document.createElement("code");
+          code.textContent = line.code;
+          cap.appendChild(code);
+        } else {
+          cap.appendChild(document.createTextNode(line));
+        }
+      });
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      parent.appendChild(fig);
+      draw(canvas);
+    }
+    function caption(d, nonce, address, bytes) {
+      var grid = Plate.indices(bytes, nonce, 0);
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var basins = Plate.basinStats(grid).count;
+      return [
+        Plate.PALETTES[d.palette].name + " · nonce " + nonce + " · s " + Plate.swallowRows(nonce) + " · " + (tenths / 10).toFixed(1) + "% water · basins " + basins,
+        { code: address }
+      ];
+    }
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var found = [null, null, null];
+    var n = 1;
+    var bytes, d, host, row;
+    while (found[0] === null || found[1] === null || found[2] === null) {
+      bytes = addrOf(n);
+      d = Plate.derive(bytes);
+      if (found[d.palette] === null) found[d.palette] = { n: n, bytes: bytes };
+      n += 1;
+    }
+    [1, 0, 2].forEach(function (fam) {
+      host = document.createElement("section");
+      var title = document.createElement("h2");
+      title.textContent = Plate.PALETTES[fam].name;
+      row = document.createElement("div");
+      row.className = "row3";
+      host.appendChild(title);
+      host.appendChild(row);
+      document.getElementById("families").appendChild(host);
+      (function (pick, parent) {
+        [1, 64, 256, 4096, 8192].forEach(function (nonce) {
+          var layout = Plate.derive(pick.bytes);
+          var text = Plate.bytesToHex(pick.bytes);
+          addPlate(parent, caption(layout, nonce, text, pick.bytes), function (canvas) {
+            Plate.paint(canvas, pick.bytes, nonce, 0);
+          });
+        });
+      })(found[fam], row);
+    });
+
+    var PROBE_ADDR = "0xd934cc70b1b06256581527a534285f5bd6a7edc7";
+    var PROBE_RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
+    function rpcCount(url) {
+      return fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionCount",
+          params: [PROBE_ADDR, "latest"]
+        })
+      }).then(function (res) {
+        if (!res.ok) throw new Error(url + " HTTP " + res.status);
+        return res.json();
+      }).then(function (body) {
+        if (!body || typeof body.result !== "string" || body.error) {
+          throw new Error(url + " " + (body && body.error ? body.error.message : "no result"));
+        }
+        var nLive = parseInt(body.result, 16);
+        if (!(nLive >= 0)) throw new Error(url + " bad result");
+        return { hex: body.result, n: nLive, url: url };
+      });
+    }
+    function tryRpc(i) {
+      if (i >= PROBE_RPCS.length) return Promise.reject(new Error("all endpoints failed"));
+      return rpcCount(PROBE_RPCS[i]).catch(function () { return tryRpc(i + 1); });
+    }
+    function probeCaption(layout, source, nonce, bytes) {
+      var grid = Plate.indices(bytes, nonce, 0);
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var basins = Plate.basinStats(grid).count;
+      return [
+        Plate.PALETTES[layout.palette].name + " · " + source + " · nonce " + nonce + " · s " + Plate.swallowRows(nonce) + " · " + (tenths / 10).toFixed(1) + "% water · basins " + basins,
+        { code: PROBE_ADDR }
+      ];
+    }
+    var probeBytes = Plate.parseAddress(PROBE_ADDR);
+    var probeLayout = Plate.derive(probeBytes);
+    function addForced(nonce) {
+      addPlate(document.getElementById("probe"), probeCaption(probeLayout, "FORCED", nonce, probeBytes), function (canvas) {
+        Plate.paint(canvas, probeBytes, nonce, 0);
+      });
+    }
+    tryRpc(0).then(function (live) {
+      var liveGrid = Plate.indices(probeBytes, live.n, 0);
+      var oneGrid = Plate.indices(probeBytes, 1, 0);
+      var g4096 = Plate.indices(probeBytes, 4096, 0);
+      var g8192 = Plate.indices(probeBytes, 8192, 0);
+      function samePlate(a, b) {
+        var i;
+        if (a.length !== b.length) return false;
+        for (i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+        return true;
+      }
+      var same = samePlate(liveGrid, oneGrid);
+      var vs4096 = samePlate(liveGrid, g4096);
+      var vs8192 = samePlate(liveGrid, g8192);
+      var sLive = Plate.swallowRows(live.n);
+      console.log("nonce-probe eth_getTransactionCount " + live.hex + " = " + live.n + " s=" + sLive + " renderNonce=" + live.n + " match1=" + (same ? "yes" : "no") + " vs4096=" + (vs4096 ? "same" : "diff") + " vs8192=" + (vs8192 ? "same" : "diff") + " rpc=" + live.url);
+      document.getElementById("probe-log").textContent = "eth_getTransactionCount = " + live.hex + " (" + live.n + ") s=" + sLive + " render nonce = " + live.n;
+      document.getElementById("probe-note").textContent = [
+        "live count returned: " + live.hex + " (" + live.n + ") s=" + sLive,
+        "LIVE match FORCED-1: " + (same ? "yes" : "no") + "; vs 4096: " + (vs4096 ? "same" : "different") + "; vs 8192: " + (vs8192 ? "same" : "different"),
+        "RPC endpoint used: " + live.url,
+        "checksum/case: sent the lowercase 0x string as given; RPC accepts any case; EIP-55 form is 0xd934CC70B1b06256581527a534285f5bd6A7eDc7",
+        "default-to-1 path: none in walk.js. Sheet FORCED plates are labeled FORCED."
+      ].join("\n");
+      addPlate(document.getElementById("probe"), probeCaption(probeLayout, "LIVE", live.n, probeBytes), function (canvas) {
+        Plate.paint(canvas, probeBytes, live.n, 0);
+      });
+      addForced(1);
+      addForced(256);
+      addForced(4096);
+      addForced(8192);
+    }).catch(function (err) {
+      console.log("nonce-probe FAIL-RPC " + err.message + " fallback=live plate not drawn");
+      document.getElementById("probe-log").textContent = "FAIL-RPC " + err.message + " fallback: live plate not drawn";
+      document.getElementById("probe-note").textContent = [
+        "live count returned: FAIL-RPC",
+        "LIVE match FORCED-1: no live count, so no",
+        "RPC endpoint used: none succeeded (" + PROBE_RPCS.join(", ") + ")",
+        "checksum/case: would have sent the lowercase 0x string as given",
+        "default-to-1 path: none in walk.js. FAIL-RPC does not paint nonce 1."
+      ].join("\n");
+      addForced(1);
+      addForced(256);
+      addForced(4096);
+      addForced(8192);
+    });
+
+    function rpcFor(addressText, i) {
+      if (i >= PROBE_RPCS.length) return Promise.reject(new Error("FAIL-RPC"));
+      return fetch(PROBE_RPCS[i], {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionCount",
+          params: [addressText, "latest"]
+        })
+      }).then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      }).then(function (body) {
+        if (!body || typeof body.result !== "string" || body.error) throw new Error("no result");
+        var nLive = parseInt(body.result, 16);
+        if (!(nLive >= 0)) throw new Error("bad result");
+        return nLive;
+      }).catch(function () { return rpcFor(addressText, i + 1); });
+    }
+    function mountLiveKey(index) {
+      var host = document.getElementById("live-keys");
+      var fig = document.createElement("figure");
+      var input = document.createElement("input");
+      var canvas = document.createElement("canvas");
+      var cap = document.createElement("figcaption");
+      var req = 0;
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = index === 0 ? PROBE_ADDR : "";
+      canvas.width = 128;
+      canvas.height = 128;
+      fig.appendChild(input);
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      host.appendChild(fig);
+      function show(raw) {
+        var id = ++req;
+        if (!raw) {
+          cap.textContent = "";
+          canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+        var check = Plate.checksumState(raw);
+        if (check === "checksum") {
+          cap.textContent = "checksum";
+          canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+        var bytes = Plate.parseAddress(raw);
+        if (!bytes || check !== "ok") {
+          cap.textContent = "That address does not parse.";
+          canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+        rpcFor(raw, 0).then(function (nonce) {
+          if (id !== req) return;
+          var grid = Plate.indices(bytes, nonce, 0);
+          var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+          cap.textContent = Plate.PALETTES[Plate.derive(bytes).palette].name + " · " + nonce + " · s" + Plate.swallowRows(nonce) + " · " + (tenths / 10).toFixed(1) + "%";
+          Plate.paint(canvas, bytes, nonce, 0);
+        }).catch(function () {
+          if (id !== req) return;
+          cap.textContent = "FAIL-RPC";
+          canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+        });
+      }
+      input.addEventListener("input", function () { show(input.value.trim()); });
+      if (index === 0) show(PROBE_ADDR);
+    }
+    mountLiveKey(0);
+    mountLiveKey(1);
+    mountLiveKey(2);
+  </script>
+</body>
+</html>

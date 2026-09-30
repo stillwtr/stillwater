@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>allow</title>
+<style>
+html,body{margin:0;background:#14181A;color:#D9D3C7;font-family:Palatino,Georgia,serif;padding:1.25rem}
+h1{font-weight:normal;font-size:1.4rem} h2{font-weight:normal;font-size:1rem;margin:1.2rem 0 0.4rem}
+.row{display:flex;flex-wrap:wrap;gap:1rem} figure{margin:0}
+canvas{width:160px;height:160px;background:#14181A;border:3px solid #3C434C;image-rendering:pixelated}
+figcaption{margin-top:0.3rem;font-size:0.8rem}
+</style></head><body>
+<h1>22895 keys · block 26070219</h1>
+<p>walkers 22200 vs 22895</p>
+<p>s 0-4 4802 · 5-8 10221 · 9-12 7699 · 13+ 173</p>
+<p>water 0% 3517 · fleck 12391 · pond 6987</p>
+<div id="bands"></div>
+<script src="../art/keccak256.js"></script>
+<script src="../art/palettes.js"></script>
+<script src="../art/render.js"></script>
+<script>
+var PICKS = [{"label":"lowest","addr":"0x0050d7d5e18a4c34d21b7f6cd77ed298996cd625","nonce":1},{"label":"lowest","addr":"0x00dceb15a412aed3046f9cc0aa20ec30ba364b4a","nonce":1},{"label":"lowest","addr":"0x00e99184c575a8e42342c06c256552158dabc594","nonce":1},{"label":"lowest","addr":"0x00f29ed858a03fd32f892f6decda7ddbe412af44","nonce":1},{"label":"median","addr":"0xfc25d19edbb3c239c84c6942bcac6277148235db","nonce":246},{"label":"median","addr":"0x5ba8017da8ad2f1a611e3be02f1c4716a3c87d32","nonce":247},{"label":"median","addr":"0x5d7ded38eee84eab2e2ce3ad95df3bee496886a1","nonce":247},{"label":"median","addr":"0x6dbafd2a5b11709d94f4df7e524be3a16f181395","nonce":247},{"label":"highest","addr":"0xbec69dfce4c1fa8b7843fee1ca85788d84a86b06","nonce":57771},{"label":"highest","addr":"0xd387a6e4e84a6c86bd90c158c6028a58cc8ac459","nonce":66252},{"label":"highest","addr":"0x8ae57a027c63fca8070d1bf38622321de8004c67","nonce":87373},{"label":"highest","addr":"0xc7f8df7b32cb89bb4ea5673f04695b87ed11f9b9","nonce":126104}];
+function addrOf(hex){ var b=new Uint8Array(20); var i; for(i=0;i<20;i++) b[i]=parseInt(hex.slice(2+i*2,4+i*2),16); return b; }
+var host=document.getElementById("bands"); var last="";
+PICKS.forEach(function(item){
+  if (item.label!==last){ last=item.label; var h=document.createElement("h2"); h.textContent=item.label; host.appendChild(h); var row=document.createElement("div"); row.className="row"; row.id="row-"+item.label; host.appendChild(row); }
+  var bytes=addrOf(item.addr); var grid=Plate.indices(bytes, item.nonce, 0);
+  var tenths=Math.trunc(Plate.countWater(grid)*1000/(Plate.N*Plate.N));
+  var fam=Plate.PALETTES[Plate.derive(bytes).palette].name;
+  var fig=document.createElement("figure"); var canvas=document.createElement("canvas"); var cap=document.createElement("figcaption");
+  cap.textContent=fam+" · "+item.nonce+" · "+(tenths/10).toFixed(1)+"%";
+  fig.appendChild(canvas); fig.appendChild(cap); document.getElementById("row-"+item.label).appendChild(fig);
+  Plate.paint(canvas, bytes, item.nonce, 0);
+});
+</script></body></html>

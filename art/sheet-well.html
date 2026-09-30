@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>well</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.4rem; }
+    p { margin: 0 0 1rem; max-width: 40rem; line-height: 1.4; }
+    .row5 { display: flex; gap: 1rem; flex-wrap: wrap; }
+    figure { margin: 0; }
+    canvas {
+      width: 128px;
+      height: 128px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    @media (min-width: 720px) {
+      canvas { width: 256px; height: 256px; }
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; line-height: 1.35; white-space: pre-line; }
+    a { color: #D9D3C7; }
+  </style>
+</head>
+<body>
+  <h1>well</h1>
+  <p>Lab. Pewter seed, nonce 4096. <a href="sheet.html">nonce sheet</a> · <a href="sheet-freeze.html">freeze</a></p>
+  <div class="row5" id="row"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script src="well.js"></script>
+  <script>
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var found = [null, null, null];
+    var n = 1;
+    var bytes, dly;
+    while (found[1] === null) {
+      bytes = addrOf(n);
+      dly = Plate.derive(bytes);
+      if (found[dly.palette] === null) found[dly.palette] = bytes;
+      n += 1;
+    }
+    var seed = found[1];
+    function add(on, label) {
+      var base = Plate.indices(seed, 4096, 0);
+      var grid = on ? PlateWell.nudge(base, Plate.heights(seed, 0)) : base;
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var basins = Plate.basinStats(grid).count;
+      var fig = document.createElement("figure");
+      var canvas = document.createElement("canvas");
+      var cap = document.createElement("figcaption");
+      canvas.width = 128;
+      canvas.height = 128;
+      cap.textContent = [
+        label,
+        (tenths / 10).toFixed(1) + "% water · basins " + basins
+      ].join("\n");
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      document.getElementById("row").appendChild(fig);
+      PlateWell.paint(canvas, seed, 4096, on);
+    }
+    add(false, "control");
+    add(true, "well");
+  </script>
+</body>
+</html>

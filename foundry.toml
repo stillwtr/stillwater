@@ -1,0 +1,20 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.37"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+# The allowlist proof test rebuilds the sorted tree inside the EVM.
+gas_limit = 8000000000
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+]
+fs_permissions = [
+  { access = "read", path = "snapshot" }
+]
+
+# Networks for this project, in order: Anvil, then Sepolia, then mainnet
+# only after the words DEPLOY MAINNET. Do not add Rinkeby or Goerli.

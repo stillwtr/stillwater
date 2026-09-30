@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>refreeze</title>
+  <style>
+    html, body { margin: 0; background: #14181A; color: #D9D3C7; }
+    body {
+      font-family: Palatino, "Palatino Linotype", Georgia, serif;
+      padding: 1.25rem;
+    }
+    h1 { font-weight: normal; font-size: 1.4rem; margin: 0 0 0.4rem; }
+    p { margin: 0 0 1rem; max-width: 42rem; line-height: 1.4; }
+    .row5 {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8rem, 12rem));
+      gap: 1rem;
+    }
+    figure { margin: 0; }
+    canvas {
+      width: 128px;
+      height: 128px;
+      background: #14181A;
+      border: 3px solid #3C434C;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    @media (min-width: 720px) {
+      canvas { width: 256px; height: 256px; }
+    }
+    figcaption { margin-top: 0.35rem; font-size: 0.85rem; line-height: 1.35; white-space: pre-line; }
+    a { color: #D9D3C7; }
+  </style>
+</head>
+<body>
+  <h1>refreeze</h1>
+  <p id="archive">archive: FAIL-ARCHIVE. No dated block is wired here, so these plates are forced. <a href="sheet.html">nonce sheet</a> · <a href="sheet-clock.html">clock</a></p>
+  <div class="row5" id="row"></div>
+  <h2>live keys</h2>
+  <div id="live-fields"></div>
+  <div class="row5" id="live-row"></div>
+  <script src="keccak256.js"></script>
+  <script src="palettes.js"></script>
+  <script src="render.js"></script>
+  <script src="freeze.js"></script>
+  <script>
+    function addrOf(n) {
+      var b = new Uint8Array(20);
+      var v = n;
+      var i;
+      for (i = 19; i >= 16; i--) {
+        b[i] = v & 255;
+        v = Math.floor(v / 256);
+      }
+      return b;
+    }
+    var found = [null, null, null];
+    var n = 1;
+    var bytes, dly;
+    while (found[1] === null) {
+      bytes = addrOf(n);
+      dly = Plate.derive(bytes);
+      if (found[dly.palette] === null) found[dly.palette] = bytes;
+      n += 1;
+    }
+    var seed = found[1];
+    var rows = [
+      { label: "STONE", snap: 4096, live: 4096, gap: 0, gapLabel: "freeze off", stone: true },
+      { label: "gap 0", snap: 4096, live: 4096, gap: 0, gapLabel: "0" },
+      { label: "1 month", snap: 4096, live: 4096, gap: PlateFreeze.MONTH, gapLabel: "1mo" },
+      { label: "1 year", snap: 4096, live: 4096, gap: PlateFreeze.YEAR, gapLabel: "1yr" },
+      { label: "4 years", snap: 4096, live: 4096, gap: 4 * PlateFreeze.YEAR, gapLabel: "4yr" },
+      { label: "kept walking", snap: 4096, live: 8192, gap: PlateFreeze.YEAR, gapLabel: "1yr" }
+    ];
+    var row = document.getElementById("row");
+    rows.forEach(function (item) {
+      var dNonce = item.live - item.snap;
+      var grid = item.stone
+        ? Plate.indices(seed, item.snap, 0)
+        : PlateFreeze.indices(seed, item.live, dNonce, item.gap);
+      var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+      var basins = Plate.basinStats(grid).count;
+      var fig = document.createElement("figure");
+      var canvas = document.createElement("canvas");
+      var cap = document.createElement("figcaption");
+      canvas.width = 128;
+      canvas.height = 128;
+      cap.textContent = [
+        item.label,
+        "snapNonce " + item.snap + " · liveNonce " + item.live,
+        "dNonce " + dNonce + " · gap " + item.gapLabel,
+        Plate.PALETTES[1].name + " · " + (tenths / 10).toFixed(1) + "% water · basins " + basins
+      ].join("\n");
+      fig.appendChild(canvas);
+      fig.appendChild(cap);
+      row.appendChild(fig);
+      var term = item.stone ? 0 : PlateFreeze.freezeTerm(dNonce, item.gap);
+      Plate.paint(canvas, seed, item.live, 0, term);
+    });
+
+    var LIVE = "0xd934cc70b1b06256581527a534285f5bd6a7edc7";
+    var LIVE_RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
+    function rpcFor(addressText, i) {
+      if (i >= LIVE_RPCS.length) return Promise.reject(new Error("FAIL-RPC"));
+      return fetch(LIVE_RPCS[i], {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionCount",
+          params: [addressText, "latest"]
+        })
+      }).then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      }).then(function (body) {
+        if (!body || typeof body.result !== "string" || body.error) throw new Error("no result");
+        var nLive = parseInt(body.result, 16);
+        if (!(nLive >= 0)) throw new Error("bad result");
+        return nLive;
+      }).catch(function () { return rpcFor(addressText, i + 1); });
+    }
+    function mountFreezeKey(index) {
+      var fields = document.getElementById("live-fields");
+      var input = document.createElement("input");
+      var group = document.createElement("div");
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = index === 0 ? LIVE : "";
+      input.style.display = "block";
+      input.style.width = "min(36rem, 100%)";
+      input.style.margin = "0.4rem 0";
+      input.style.background = "#14181A";
+      input.style.color = "#D9D3C7";
+      input.style.border = "1px solid #3a4038";
+      input.style.font = "inherit";
+      input.style.padding = "0.4rem 0.5rem";
+      fields.appendChild(input);
+      group.style.display = "contents";
+      document.getElementById("live-row").appendChild(group);
+      var req = 0;
+      function paintSet(bytes, nonce) {
+        var specs = [
+          { label: "stone", term: 0, showNonce: true },
+          { label: "gap 0", term: PlateFreeze.freezeTerm(0, 0) },
+          { label: "1yr", term: PlateFreeze.freezeTerm(0, PlateFreeze.YEAR) },
+          { label: "4yr", term: PlateFreeze.freezeTerm(0, 4 * PlateFreeze.YEAR) }
+        ];
+        group.innerHTML = "";
+        specs.forEach(function (spec) {
+          var grid = Plate.indices(bytes, nonce, 0, spec.term);
+          var tenths = Math.trunc(Plate.countWater(grid) * 1000 / (Plate.N * Plate.N));
+          var fig = document.createElement("figure");
+          var canvas = document.createElement("canvas");
+          var cap = document.createElement("figcaption");
+          canvas.width = 128;
+          canvas.height = 128;
+          cap.textContent = spec.label + (spec.showNonce ? " · " + nonce : "") + " · " + (tenths / 10).toFixed(1) + "%";
+          fig.appendChild(canvas);
+          fig.appendChild(cap);
+          group.appendChild(fig);
+          Plate.paint(canvas, bytes, nonce, 0, spec.term);
+        });
+      }
+      function show(raw) {
+        var id = ++req;
+        group.innerHTML = "";
+        if (!raw) return;
+        var check = Plate.checksumState(raw);
+        if (check !== "ok") {
+          var note = document.createElement("p");
+          note.textContent = check === "checksum" ? "checksum" : "That address does not parse.";
+          group.appendChild(note);
+          return;
+        }
+        var bytes = Plate.parseAddress(raw);
+        if (!bytes) return;
+        rpcFor(raw, 0).then(function (nonce) {
+          if (id !== req) return;
+          paintSet(bytes, nonce);
+        }).catch(function () {
+          if (id !== req) return;
+          var note = document.createElement("p");
+          note.textContent = "FAIL-RPC";
+          group.appendChild(note);
+        });
+      }
+      input.addEventListener("input", function () { show(input.value.trim()); });
+      if (index === 0) show(LIVE);
+    }
+    mountFreezeKey(0);
+    mountFreezeKey(1);
+    mountFreezeKey(2);
+  </script>
+</body>
+</html>
