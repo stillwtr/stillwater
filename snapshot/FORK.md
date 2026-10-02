@@ -9,7 +9,8 @@ This is the record for “constructor is the real root.” The Stillwater addres
 - viaIR: false
 - Script: `script/ForkProve.s.sol`
 - Ephemeral Stillwater: `0x5aAdFB43eF8dAF45DD80F4676345b7676f1D70e3`
-- Constructor root: `0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
+- Constructor root on this fork: `0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
+- The hall was cleaned after this proof. The fork was not run again. The current root is in `snapshot/root-walkers.txt`.
 - Treasury: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - Price on this fork: 0.00420 ether
 - Name / symbol: Stillwater / STILL

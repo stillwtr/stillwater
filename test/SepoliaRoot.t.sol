@@ -7,7 +7,7 @@ import {SepoliaRoot} from "../script/SepoliaRoot.sol";
 
 /// Same checks as the fork, on the temporary Sepolia root.
 contract SepoliaRootTest is Test {
-    bytes32 internal constant WALKER = 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c;
+    bytes32 internal constant WALKER = 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634;
     address internal constant VAULT = 0x000000000000000000000000000000000000F00D;
     address internal constant STRANGER = address(0xBEEF);
 

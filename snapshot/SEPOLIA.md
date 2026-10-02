@@ -12,7 +12,8 @@ Nothing here was committed. `.env` was not modified.
 - Gas used: 2543581
 - Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - Temporary root: `0x5f9e4e542dae379422b58b3c301884cce31ab11d5407be39a7509f5b9725e47f`
-- Walker root, not used on this deploy: `0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
+- Walker root at the time of this deploy, not used here: `0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
+- The hall root was cleaned after this deploy. Sepolia was not redeployed. The current root is in `snapshot/root-walkers.txt`.
 - Price read back: 0
 - Name / symbol: Stillwater / STILL
 - walkBase: `https://walk.test/`

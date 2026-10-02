@@ -57,12 +57,48 @@ contract SnapshotWalkersTest is Test {
             if (i > 0) assertGt(uint160(keys[i]), uint160(keys[i - 1]), "unsorted");
         }
         bytes32 root = _word(vm.readFile("snapshot/root-walkers.txt"));
-        assertEq(root, 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c);
+        assertEq(root, 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634);
+        assertTrue(root != 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c, "previous root");
         assertEq(root, _rootOf(keys), "root");
     }
 
+    function test_hallClean() public {
+        bytes32 root = 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634;
+        assertEq(_word(vm.readFile("snapshot/root-walkers.txt")), root);
+        string memory picked = vm.readFile("snapshot/mint-check-walkers.json");
+        address kept = vm.parseJsonAddress(picked, ".a");
+        address dropped = vm.parseJsonAddress(picked, ".dropped");
+        address oldKey = vm.parseJsonAddress(picked, ".oldAddress");
+        bytes32[] memory proof = vm.parseJsonBytes32Array(picked, ".proofA");
+        bytes32[] memory oldProof = vm.parseJsonBytes32Array(picked, ".oldProof");
+        vm.chainId(1);
+        Stillwater still = _wired(root);
+        uint256 cost = still.price();
+        vm.deal(kept, 1 ether);
+        vm.deal(dropped, 1 ether);
+        vm.deal(oldKey, 1 ether);
+        address stranger = address(0xBEEF);
+        vm.deal(stranger, 1 ether);
+
+        vm.prank(oldKey);
+        vm.expectRevert(Stillwater.BadProof.selector);
+        still.mint{value: cost}(oldProof);
+
+        vm.prank(kept);
+        still.mint{value: cost}(proof);
+        assertEq(still.minter(1), kept);
+
+        vm.prank(dropped);
+        vm.expectRevert(Stillwater.BadProof.selector);
+        still.mint{value: cost}(proof);
+
+        vm.prank(stranger);
+        vm.expectRevert(Stillwater.BadProof.selector);
+        still.mint{value: cost}(proof);
+    }
+
     function test_walkerRootDeploy() public {
-        bytes32 walker = 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c;
+        bytes32 walker = 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634;
         assertEq(_word(vm.readFile("snapshot/root-walkers.txt")), walker);
         string memory picked = vm.readFile("snapshot/mint-check-walkers.json");
         address a = vm.parseJsonAddress(picked, ".a");

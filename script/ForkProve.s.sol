@@ -5,7 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 import {Stillwater} from "../src/Stillwater.sol";
 
-/// Mainnet-fork proof. Impersonates KEY1 and mints against the walker root.
+/// Replays the recorded fork proof. This root is the list from before the hall clean.
 contract ForkProve is Script {
     bytes32 internal constant WALKER = 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c;
     address internal constant KEY1 = 0xd934CC70B1b06256581527a534285f5bd6A7eDc7;

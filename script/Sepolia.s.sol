@@ -6,9 +6,9 @@ import {console2} from "forge-std/console2.sol";
 import {Stillwater} from "../src/Stillwater.sol";
 import {SepoliaRoot} from "./SepoliaRoot.sol";
 
-/// Sepolia only. Passes the temporary three-key root. The walker root stays on the fork script.
+/// Sepolia only. Passes the temporary three-key root. The cleaned hall root is not deployed here.
 contract SepoliaDeploy is Script {
-    bytes32 internal constant WALKER = 0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c;
+    bytes32 internal constant WALKER = 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634;
 
     function run() external {
         require(block.chainid == 11155111, "sepolia");

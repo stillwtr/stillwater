@@ -1,26 +1,34 @@
 # Stillwater
 
-Stillwater is the print. The Walk is where you see it move until it doesn’t.
+The plate is a frozen pond. How busy the key has been is how much water is open. When they shutter, that night stays. Quiet after that grows ice back on the live view only.
 
-The look page is **The Walk** (`walk/`). It has no wallet and no price. The sale page is **Lobby** (`lobby/`). That is where a plate is claimed, dated, listed, and bought. The token is named Stillwater. Its symbol is STILL. The Walk is not titled Stillwater. The Lobby is not titled The Walk.
+Stillwater is one print. It is an ERC-721 named Stillwater, symbol STILL, supply 512. A key that walked a hall during the snapshot year can mint once. The picture is drawn from that key and how many transactions it has sent. Dating the print shutters it, and the dated plate keeps that moment. The live view can keep moving. A quiet key ices over again. The dated one does not.
 
-This folder is its own project at `/home/copper/Documents/stillwater`. It is not part of Parsed Parcels. The GitHub name reserved for it is `stillwtr/stillwater`. Nothing has been pushed.
+## See it
 
-## The picture
+The Walk (`art/walk.html`) is the room. It has no wallet and no price. The bare page reads one example key live. A link with an id and a chain opens that print. Lobby (`lobby/`) is where a print is claimed, dated, listed, and bought.
 
-The picture is an overhead ice field. A quiet wallet is almost all snow. A wallet that has sent many transactions has dark water opened across that snow. The drawing is a function of the address and the transaction count, in `art/render.js`. A dated plate remembers who dated it (`datedBy`) and the block (`datedBlock`). The Walk only projects that. If this page is gone, another page with the same function can still draw it. v0 does not store image files of the plates, and it does not put the pixels on the contract. A future nonce opcode stays off until you say to arm it. Plates dated before that keep `datedBy` and the block.
+## Who can mint
 
-Nothing here is on mainnet. Later the order is Anvil (a practice chain on this computer), then Sepolia, then mainnet only after you type `DEPLOY MAINNET`. Never Rinkeby. Never Goerli.
+A hall is an Art Blocks flagship core, a Transient Labs collection, or Verse Works. In the year that ends at snapshot block 26070219, a key that sent or received one of those works is a candidate. A mint counts. A sale counts. Holding a work all year without a transfer does not. The zero address is not a leaf.
 
-Foundry is installed. The sample Counter contract was not created. The pictures and the Solidity come in later steps, after you say so.
+Exchanges, bridges, and routers stay off. So do desks that were funded as a farm: ten or more keys whose first payments mostly landed inside one day, and one 453-key factory whose funder never walked a hall. Smaller desks stay. The contracts are named in `halls.md`. The counts and the current root are in `snapshot/SNAPSHOT.md`.
 
-## Folders
+## The print
 
-- `src/` — contracts, later
-- `test/` — tests, later
-- `script/` — deploy scripts, later
-- `walk/` — The Walk
-- `lobby/` — Lobby
-- `art/` — the night-sea drawing, later
-- `indexer/` — the eligibility list, later
-- `halls.md` — which Ethereum contracts count as a hall
+`art/render.js` draws the plate. The contract does not store the pixels. `date(uint256)` records who shuttered it, and the block, once. The title can park the print in a vault. Only that vault can send it home. Approvals are off.
+
+Mainnet price is 0.00420 ether. Any other chain mints for 0. Mainnet is not deployed. The Sepolia contract is `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34`. That deploy uses a temporary three-key root, not the hall root.
+
+## Build
+
+Foundry. Solidity 0.8.37, optimizer 200 runs, viaIR off.
+
+```bash
+forge test
+node art/gate.js
+```
+
+The leaf is `keccak256(bytes.concat(keccak256(abi.encode(address))))`. Pairs are sorted, then hashed. An odd node at the end of a level is lifted. The root is the one constructor argument. There is no setter and no second root.
+
+Anvil, then Sepolia, then mainnet only after `DEPLOY MAINNET`.

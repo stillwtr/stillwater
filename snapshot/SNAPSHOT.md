@@ -128,11 +128,20 @@ CEX, bridge, and router tags from the same Etherscan label scrape, plus the four
 - Uniswap Universal Router `0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad`
 - Uniswap Universal Router (previous) `0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b`
 
+## Hall clean
+
+Farm-ish desks are off the list: at least 10 keys, and a majority of first payments inside one 24-hour window. Twelve such desks, 247 keys. The 453-key factory is off as well. Its busiest day was 20 keys, so the 24-hour rule did not catch it. That funder never walked a hall and was not added. Five other parents had already walked and were already on the list. One parent had walked and was restored. Seven parents were not added. Singletons and smaller desks stay. Known exchanges, bridges, and routers stay off. Nonce 0 stays off. The allowlist is not read by the walk page.
+
+- keys before: 22200
+- keys dropped: 699
+- keys after: 21501
+- root: `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
+
 ## Deploy wiring
 
-Constructor argument `merkleRoot` for this pass is the walker root. One immutable. No setter. Leaf unchanged. allowlist-walkers.json was not rewritten.
+Constructor argument `merkleRoot` is this root. One immutable. No setter. No second root. Leaf unchanged. Sepolia was not redeployed.
 
-`0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
+`0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
 
 - solc: 0.8.37
 - viaIR: false

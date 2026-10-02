@@ -1,6 +1,6 @@
 # Accept
 
-The plate is an overhead ice field, 128 by 128, full frame. One comparison per cell: height plus a row dither against the water table. Water is frost that failed. Slush is frost breaking. Snow is frost that held. There is no mask and no halo drawn around one.
+The plate is a frozen pond. How busy the key has been is how much water is open. The drawing is 128 by 128, full frame. One comparison per cell: height plus a row dither against the water table. Water is frost that failed. Slush is frost breaking. Snow is frost that held. There is no mask and no halo drawn around one.
 
 ## Laws
 

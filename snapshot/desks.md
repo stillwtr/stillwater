@@ -1,20 +1,22 @@
 # Desks
 
-A cluster is one shared first funder. The funder is the earliest normal value transfer to the walker in Blockscout's oldest page. A walker whose funder is a known CEX, bridge, or router, or who has no such transfer on that page, is a singleton.
+A cluster is one shared first funder. A key whose funder is a known exchange, bridge, or router, or who has no such payment, is a singleton. Singletons and desks of fewer than 10 stay.
 
-Farm-ish means the cluster has at least 10 keys and a majority of those funding timestamps sit inside some 24-hour window.
+Farm-ish means at least 10 keys and a majority of those first payments inside one 24-hour window. Those clusters are off the list.
 
-- walkers: 22200
-- dropped nonce0: 688
-- dropped deny-list: 7
-- clusters after CEX-ignore: 17390
-- singletons: 16182
-- of which CEX, bridge, router, or no funder on the page: 5856
-- desks 2–9: 1117
-- large desks (10 or more, not farm-ish): 79
+The 453-key factory did not trip the one-day rule (busiest day 20 keys across 853 days). It was removed because it was named. Its funder never walked a hall, so the funder was not added.
+
+A parent funder is added only when that parent walked a qualifying hall in the same year and is not nonce 0. A factory that never walked is not added.
+
+- keys before: 22200
 - farm-ish clusters: 12
-- keys inside farm-ish clusters: 247
-- keys/cluster p50: 1
-- keys/cluster p90: 1
-- keys/cluster max: 453
-- non-farm walkers: 21953
+- keys in farm-ish clusters: 247
+- factory keys: 453
+- parents already on the list: 5
+- parents restored: 1
+- parents not added: 7
+- keys dropped: 699
+- keys after: 21501
+- root: `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
+
+Leaf: keccak256(bytes.concat(keccak256(abi.encode(address)))).
