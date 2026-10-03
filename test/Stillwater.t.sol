@@ -388,6 +388,108 @@ contract StillwaterTest is Test {
         assertEq(still.ownerOf(bobId), bob);
     }
 
+    function test_claimMarksWithoutMint() public {
+        vm.prank(carol);
+        vm.expectRevert(Stillwater.BadProof.selector);
+        still.claim(proofAlice);
+        vm.prank(bob);
+        still.claim(proofBob);
+        assertTrue(still.claimed(bob));
+        assertFalse(still.minted(bob));
+        assertEq(still.balanceOf(bob), 0);
+        assertEq(still.nextId(), 0);
+        assertEq(still.mintedCount(), 0);
+        assertEq(still.leaf(bob), _leaf(bob));
+        vm.prank(bob);
+        still.claim(proofBob);
+        assertFalse(still.minted(bob));
+        uint256 bobBefore = bob.balance;
+        vm.deal(address(this), 1 ether);
+        vm.prank(bob);
+        (bool paid,) = address(still).call{value: 1}(abi.encodeWithSignature("claim(bytes32[])", proofBob));
+        assertFalse(paid);
+        assertEq(bob.balance, bobBefore);
+        assertEq(address(still).balance, 0);
+    }
+
+    function test_minterSendsToClaimedUnminted() public {
+        uint256 id = _mintAs(alice, proofAlice);
+        string memory before = still.tokenURI(id);
+        assertTrue(still.claimed(alice));
+        vm.prank(bob);
+        still.claim(proofBob);
+        assertTrue(still.claimed(bob));
+        assertFalse(still.minted(bob));
+        vm.prank(alice);
+        still.transferFrom(alice, bob, id);
+        assertEq(still.ownerOf(id), bob);
+        assertEq(still.titleHolder(id), bob);
+        assertEq(still.minter(id), alice);
+        assertEq(still.mailboxOf(id), address(0));
+        assertEq(still.tokenURI(id), before);
+        assertEq(still.familyOf(still.minter(id)), _familyName(alice));
+        assertFalse(still.minted(bob));
+        uint256 bobId = _mintAs(bob, proofBob);
+        assertEq(bobId, 2);
+        assertEq(still.minter(id), alice);
+        assertEq(still.minter(bobId), bob);
+        assertEq(still.ownerOf(id), bob);
+        assertEq(still.tokenURI(id), before);
+    }
+
+    function test_unclaimedToReverts() public {
+        uint256 id = _mintAs(alice, proofAlice);
+        address stranger = address(0x1111);
+        vm.prank(alice);
+        vm.expectRevert(Stillwater.Hook.selector);
+        still.transferFrom(alice, bob, id);
+        vm.prank(alice);
+        vm.expectRevert(Stillwater.Hook.selector);
+        still.transferFrom(alice, stranger, id);
+        assertEq(still.ownerOf(id), alice);
+        assertEq(still.titleHolder(id), alice);
+        assertEq(still.minter(id), alice);
+        assertFalse(still.claimed(bob));
+        assertFalse(still.claimed(stranger));
+    }
+
+    function test_vaultCannotSendToClaimedBuyer() public {
+        uint256 id = _mintAs(alice, proofAlice);
+        vm.prank(bob);
+        still.claim(proofBob);
+        assertFalse(still.minted(bob));
+        vm.prank(alice);
+        still.setMailbox(id, carol);
+        vm.prank(carol);
+        vm.expectRevert(Stillwater.Hook.selector);
+        still.transferFrom(carol, bob, id);
+        assertEq(still.ownerOf(id), carol);
+        assertEq(still.titleHolder(id), alice);
+        assertEq(still.minter(id), alice);
+        assertEq(still.mailboxOf(id), carol);
+        vm.prank(alice);
+        vm.expectRevert(Stillwater.Hook.selector);
+        still.transferFrom(carol, alice, id);
+    }
+
+    function test_oneMintPerKeyStillHolds() public {
+        vm.prank(alice);
+        still.claim(proofAlice);
+        assertTrue(still.claimed(alice));
+        assertFalse(still.minted(alice));
+        uint256 id = _mintAs(alice, proofAlice);
+        assertEq(id, 1);
+        assertTrue(still.minted(alice));
+        assertTrue(still.claimed(alice));
+        assertEq(still.minter(id), alice);
+        uint256 cost = still.price();
+        vm.prank(alice);
+        vm.expectRevert(Stillwater.AlreadyMinted.selector);
+        still.mint{value: cost}(proofAlice);
+        assertEq(still.mintedCount(), 1);
+        assertEq(still.balanceOf(alice), 1);
+    }
+
     function test_mailboxCannotMintDateOrSetRenderer() public {
         uint256 id = _mintAs(alice, proofAlice);
         vm.prank(alice);

@@ -9,9 +9,10 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IStillwaterRenderer} from "./IStillwaterRenderer.sol";
 
-/// Stillwater. One print per eligible key. date() takes no nonce.
+/// Stillwater. One print per key. date() takes no nonce.
 /// Treasury is the constructor owner and does not move.
-/// A hall key becomes eligible when it mints. Until then it cannot receive.
+/// claim(proof) marks the caller as in the hall. No payment. No print.
+/// Mint marks the minter claimed. Until a key has claimed, it cannot receive.
 /// Authorization is msg.sender. There is no trusted forwarder and no ERC-2771.
 /// 7702 delegation is the owner's key, not a protocol bug.
 /// setMailbox parks the print in a vault. The contract moves it. Title stays.
@@ -29,7 +30,7 @@ contract Stillwater is ERC721, Ownable, ReentrancyGuard {
     uint256 public mintedCount;
 
     mapping(address => bool) public minted;
-    mapping(address => bool) public eligible;
+    mapping(address => bool) public claimed;
     mapping(uint256 => address) public minter;
     mapping(uint256 => address) public titleHolder;
     mapping(uint256 => address) public mailboxOf;
@@ -68,6 +69,12 @@ contract Stillwater is ERC721, Ownable, ReentrancyGuard {
         price = block.chainid == 1 ? 0.00420 ether : 0;
     }
 
+    /// Marks the caller as in the hall. No payment. No print.
+    function claim(bytes32[] calldata proof) external {
+        if (!MerkleProof.verify(proof, merkleRoot, _leaf(msg.sender))) revert BadProof();
+        claimed[msg.sender] = true;
+    }
+
     function mint(bytes32[] calldata proof) external payable nonReentrant {
         if (msg.value != price) revert BadPrice();
         if (mintedCount >= SUPPLY) revert SoldOut();
@@ -76,7 +83,7 @@ contract Stillwater is ERC721, Ownable, ReentrancyGuard {
         if (_parkedAt[msg.sender] != 0) revert Hook();
 
         minted[msg.sender] = true;
-        eligible[msg.sender] = true;
+        claimed[msg.sender] = true;
         uint256 id = ++nextId;
         mintedCount = id;
         minter[id] = msg.sender;
@@ -211,7 +218,7 @@ contract Stillwater is ERC721, Ownable, ReentrancyGuard {
             mailboxOf[id] = address(0);
         } else if (from == title && msg.sender == title) {
             bool toBox = box != address(0) && to == box;
-            bool toHall = eligible[to];
+            bool toHall = claimed[to];
             if (!toBox && !toHall) revert Hook();
             if (toHall && to != box) {
                 titleHolder[id] = to;
