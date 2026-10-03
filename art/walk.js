@@ -165,12 +165,11 @@
     whisperEl.hidden = true;
   }
 
-  function showWhisperName(el, force) {
-    var label = el.getAttribute("title");
+  function showWhisperName(el) {
+    var label = el.getAttribute("data-name");
     var value = el.getAttribute("data-value");
     var token;
     if (whisperEl.hidden || !value || !label) return;
-    if (!force && window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
     token = ++whisperToken;
     restoreWhisper(wPal);
     restoreWhisper(wNonce);
@@ -642,13 +641,9 @@
   });
 
   [wPal, wNonce, wWater].forEach(function (el) {
-    el.addEventListener("pointerup", function (event) {
-      event.stopPropagation();
-      showWhisperName(el, event.pointerType === "touch");
-    });
     el.addEventListener("click", function (event) {
       event.stopPropagation();
-      showWhisperName(el, false);
+      showWhisperName(el);
     });
   });
 
