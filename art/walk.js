@@ -40,6 +40,8 @@
   var wWater = document.getElementById("w-water");
   var whisperEl = document.getElementById("whisper");
   var hall = { chain: "sepolia", contract: SEPOLIA, nextId: 0, known: false };
+  var copyTimer = null;
+  var copyToken = 0;
 
   function fit() {
     var room = Math.min(window.innerWidth, window.innerHeight - 156);
@@ -144,6 +146,7 @@
     heldNonce = nonce;
     heldPace = crawlBytes || bytes;
     setNote("");
+    endCopyFlash();
     lintel.textContent = shortKey(full);
     lintel.setAttribute("data-full", full);
     lintel.removeAttribute("title");
@@ -154,6 +157,7 @@
   }
 
   function clearLintel() {
+    endCopyFlash();
     lintel.textContent = "";
     lintel.removeAttribute("data-full");
     lintel.removeAttribute("title");
@@ -462,24 +466,67 @@
     else openLiveToken(hall.chain, hall.contract, i);
   }
 
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function () { copyFallback(text); });
-      return;
+  function endCopyFlash() {
+    copyToken += 1;
+    if (copyTimer) {
+      clearTimeout(copyTimer);
+      copyTimer = null;
     }
-    copyFallback(text);
+    lintel.classList.remove("copied");
+  }
+
+  function markCopied() {
+    var full = lintel.getAttribute("data-full");
+    var token;
+    if (!full) return;
+    token = copyToken;
+    lintel.classList.add("copied");
+    lintel.textContent = "copied";
+    if (copyTimer) clearTimeout(copyTimer);
+    copyTimer = setTimeout(function () {
+      copyTimer = null;
+      if (token !== copyToken) return;
+      lintel.classList.remove("copied");
+      if (lintel.getAttribute("data-full") === full) lintel.textContent = shortKey(full);
+    }, 1100);
   }
 
   function copyFallback(text) {
     var area = document.createElement("textarea");
+    var ok = false;
     area.value = text;
     area.setAttribute("readonly", "");
     area.style.position = "fixed";
-    area.style.left = "-999px";
+    area.style.top = "0";
+    area.style.left = "0";
+    area.style.width = "2em";
+    area.style.height = "2em";
+    area.style.padding = "0";
+    area.style.border = "none";
+    area.style.outline = "none";
+    area.style.opacity = "0";
     document.body.appendChild(area);
+    area.focus();
     area.select();
-    try { document.execCommand("copy"); } catch (e) { /* quiet */ }
+    area.setSelectionRange(0, text.length);
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
     document.body.removeChild(area);
+    try { lintel.focus({ preventScroll: true }); } catch (e2) { /* quiet */ }
+    return ok;
+  }
+
+  function copyText(text) {
+    var clip = null;
+    var legacy = false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try { clip = navigator.clipboard.writeText(text); }
+      catch (e) { clip = null; }
+    }
+    legacy = copyFallback(text);
+    if (legacy) markCopied();
+    if (clip && typeof clip.then === "function") {
+      clip.then(function () { markCopied(); }, function () {});
+    }
   }
 
   liveBtn.addEventListener("click", function () {

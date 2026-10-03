@@ -93,6 +93,10 @@
     button.lintel {
       color: var(--ink);
       font-weight: 500;
+      transition: color 180ms linear;
+    }
+    button.lintel.copied {
+      color: var(--dim);
     }
     input, input::placeholder {
       text-transform: none;
@@ -108,7 +112,7 @@
   </style>
 </head>
 <body>
-  <button type="button" class="lintel" id="lintel"></button>
+  <button type="button" class="lintel" id="lintel" aria-live="polite"></button>
   <p class="whisper" id="whisper" hidden>
     <span id="w-pal" title="palette"></span>
     <span aria-hidden="true"> · </span>
