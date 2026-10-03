@@ -42,6 +42,7 @@
   var hall = { chain: "sepolia", contract: SEPOLIA, nextId: 0, known: false };
   var copyTimer = null;
   var copyToken = 0;
+  var whisperToken = 0;
 
   function fit() {
     var room = Math.min(window.innerWidth, window.innerHeight - 156);
@@ -126,18 +127,64 @@
     }, (6 + (n % 7)) * 1000);
   }
 
+  function restoreWhisper(el) {
+    var value = el.getAttribute("data-value");
+    el.classList.remove("fade");
+    if (value) el.textContent = value;
+  }
+
+  function endWhisperNames() {
+    whisperToken += 1;
+    restoreWhisper(wPal);
+    restoreWhisper(wNonce);
+    restoreWhisper(wWater);
+  }
+
   function paintWhisper(bytes, nonce) {
-    wPal.textContent = Plate.PALETTES[Plate.derive(bytes).palette].name;
-    wNonce.textContent = String(nonce);
-    wWater.textContent = (Plate.waterFraction(bytes, nonce) * 100).toFixed(1) + "%";
+    var pal = Plate.PALETTES[Plate.derive(bytes).palette].name;
+    var nText = String(nonce);
+    var wText = (Plate.waterFraction(bytes, nonce) * 100).toFixed(1) + "%";
+    endWhisperNames();
+    wPal.setAttribute("data-value", pal);
+    wNonce.setAttribute("data-value", nText);
+    wWater.setAttribute("data-value", wText);
+    wPal.textContent = pal;
+    wNonce.textContent = nText;
+    wWater.textContent = wText;
     whisperEl.hidden = false;
   }
 
   function clearWhisper() {
+    endWhisperNames();
     wPal.textContent = "";
     wNonce.textContent = "";
     wWater.textContent = "";
+    wPal.removeAttribute("data-value");
+    wNonce.removeAttribute("data-value");
+    wWater.removeAttribute("data-value");
     whisperEl.hidden = true;
+  }
+
+  function showWhisperName(el, force) {
+    var label = el.getAttribute("title");
+    var value = el.getAttribute("data-value");
+    var token;
+    if (whisperEl.hidden || !value || !label) return;
+    if (!force && window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    token = ++whisperToken;
+    restoreWhisper(wPal);
+    restoreWhisper(wNonce);
+    restoreWhisper(wWater);
+    el.textContent = label;
+    setTimeout(function () {
+      if (token !== whisperToken) return;
+      el.classList.add("fade");
+      setTimeout(function () {
+        if (token !== whisperToken) return;
+        el.classList.remove("fade");
+        el.textContent = el.getAttribute("data-value") || "";
+      }, 280);
+    }, 1750);
   }
 
   function show(bytes, nonce, who, crawlBytes) {
@@ -592,6 +639,17 @@
   lintel.addEventListener("click", function () {
     var full = lintel.getAttribute("data-full");
     if (full) copyText(full);
+  });
+
+  [wPal, wNonce, wWater].forEach(function (el) {
+    el.addEventListener("pointerup", function (event) {
+      event.stopPropagation();
+      showWhisperName(el, event.pointerType === "touch");
+    });
+    el.addEventListener("click", function (event) {
+      event.stopPropagation();
+      showWhisperName(el, false);
+    });
   });
 
   field.addEventListener("keydown", function (event) {

@@ -90,14 +90,21 @@
       color: var(--ink);
       font-weight: 700;
     }
-    button.lintel {
+    #lintel {
       color: var(--ink);
       font-weight: 500;
       transition: color 180ms linear;
     }
-    button.lintel.copied {
+    #lintel.copied { color: var(--dim); }
+    .whisper button {
+      padding: 0.45rem 0.28rem;
       color: var(--dim);
+      font-weight: 500;
+      transition: opacity 280ms linear;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
+    .whisper button.fade { opacity: 0; }
     input, input::placeholder {
       text-transform: none;
       letter-spacing: 0.04em;
@@ -112,13 +119,15 @@
   </style>
 </head>
 <body>
-  <button type="button" class="lintel" id="lintel" aria-live="polite"></button>
+  <div class="lintel">
+    <button type="button" id="lintel" aria-live="polite"></button>
+  </div>
   <p class="whisper" id="whisper" hidden>
-    <span id="w-pal" title="palette"></span>
+    <button type="button" id="w-pal" title="palette"></button>
     <span aria-hidden="true"> · </span>
-    <span id="w-nonce" title="nonce"></span>
+    <button type="button" id="w-nonce" title="nonce"></button>
     <span aria-hidden="true"> · </span>
-    <span id="w-water" title="% water"></span>
+    <button type="button" id="w-water" title="% water"></button>
   </p>
   <div class="court">
     <div class="pool">
