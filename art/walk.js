@@ -19,6 +19,7 @@
   var field = document.getElementById("field");
   var EXAMPLE = "0xd934CC70B1b06256581527a534285f5bd6A7eDc7";
   var SEPOLIA = "0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34";
+  var MAINNET_STILL = "";
   var liveBtn = document.getElementById("live");
   var datedBtn = document.getElementById("dated");
   var searchBtn = document.getElementById("search");
@@ -39,7 +40,9 @@
   var wNonce = document.getElementById("w-nonce");
   var wWater = document.getElementById("w-water");
   var whisperEl = document.getElementById("whisper");
-  var hall = { chain: "sepolia", contract: SEPOLIA, nextId: 0, known: false };
+  var hall = { chain: "mainnet", contract: "", nextId: 0, known: false };
+  var doorNext = 0;
+  var doorKnown = false;
   var copyTimer = null;
   var copyToken = 0;
   var whisperToken = 0;
@@ -331,7 +334,8 @@
   }
 
   function arrows() {
-    var show = !!(hall && hall.known && hall.contract && hall.nextId >= 1);
+    var mainnetOpen = !!(MAINNET_STILL && doorKnown && doorNext >= 1);
+    var show = mainnetOpen && !!(hall && hall.known && hall.contract && hall.nextId >= 1);
     prevBtn.hidden = !show;
     nextBtn.hidden = !show;
   }
@@ -462,7 +466,18 @@
     if (q.contract) {
       return { chain: q.chain || "sepolia", contract: q.contract, nextId: 0, known: false };
     }
-    return { chain: "sepolia", contract: SEPOLIA, nextId: 0, known: false };
+    if (q.chain === "sepolia" && q.id) {
+      return { chain: "sepolia", contract: SEPOLIA, nextId: 0, known: false };
+    }
+    return { chain: "mainnet", contract: MAINNET_STILL, nextId: 0, known: false };
+  }
+
+  function rememberDoor(chain, contract, nextId) {
+    if (!MAINNET_STILL) return;
+    if (chain === "mainnet" && contract.toLowerCase() === MAINNET_STILL.toLowerCase()) {
+      doorNext = nextId >= 1 ? nextId : 0;
+      doorKnown = true;
+    }
   }
 
   function route(q) {
@@ -484,15 +499,36 @@
     var q = query();
     snow();
     hall = hallFrom(q);
-    readNextId(hall.chain, hall.contract).then(function (n) {
-      hall.nextId = n >= 1 ? n : 0;
-      hall.known = true;
-      arrows();
-    }).catch(function () {
+    if (!MAINNET_STILL) {
+      doorNext = 0;
+      doorKnown = true;
+    } else if (!(hall.contract && hall.chain === "mainnet" && hall.contract.toLowerCase() === MAINNET_STILL.toLowerCase())) {
+      readNextId("mainnet", MAINNET_STILL).then(function (n) {
+        doorNext = n >= 1 ? n : 0;
+        doorKnown = true;
+        arrows();
+      }).catch(function () {
+        doorNext = 0;
+        doorKnown = true;
+        arrows();
+      });
+    }
+    if (!hall.contract) {
       hall.nextId = 0;
       hall.known = true;
       arrows();
-    });
+    } else {
+      readNextId(hall.chain, hall.contract).then(function (n) {
+        hall.nextId = n >= 1 ? n : 0;
+        hall.known = true;
+        rememberDoor(hall.chain, hall.contract, hall.nextId);
+        arrows();
+      }).catch(function () {
+        hall.nextId = 0;
+        hall.known = true;
+        arrows();
+      });
+    }
     route(q);
   }
 
