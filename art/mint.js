@@ -38,6 +38,11 @@
   var copyTimer = null;
   var timer = null;
   var phase = 0;
+  var plateMs = 0;
+  var plateDue = 0;
+  var platePaused = false;
+  var plateBytes = null;
+  var plateNonce = 0;
   var ticket = 0;
 
   function setNote(text) {
@@ -170,9 +175,13 @@
   }
 
   function disarm() {
-    if (timer) clearInterval(timer);
+    if (timer) clearTimeout(timer);
     timer = null;
     phase = 0;
+    platePaused = false;
+    plateDue = 0;
+    plateMs = 0;
+    plateBytes = null;
   }
 
   function lipOf(el) {
@@ -264,11 +273,128 @@
     }
   }
 
-  function hideGrid() {
+  function cellStep(item) {
+    item.timer = null;
+    if (document.hidden) {
+      item.paused = true;
+      return;
+    }
+    item.phase = (item.phase + 1) & 31;
+    item.due += item.ms;
+    if (item.due <= Date.now()) item.due = Date.now() + item.ms;
+    Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
+    cellWait(item);
+  }
+
+  function cellWait(item) {
+    var wait;
+    if (item.timer) clearTimeout(item.timer);
+    item.timer = null;
+    if (!item.ms) return;
+    if (document.hidden) {
+      item.paused = true;
+      return;
+    }
+    item.paused = false;
+    wait = item.due - Date.now();
+    if (wait < 1) wait = item.ms;
+    item.timer = setTimeout(cellStep, wait, item);
+  }
+
+  /* Time spent hidden counts, and only the step that time reached is drawn. */
+  function cellReach(item) {
+    var now, late, steps;
+    if (!item.paused) return;
+    item.paused = false;
+    now = Date.now();
+    if (item.due && now >= item.due) {
+      late = now - item.due;
+      steps = Math.floor(late / item.ms) + 1;
+      item.phase = (item.phase + (steps % 32)) & 31;
+      item.due += steps * item.ms;
+      Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
+    }
+    cellWait(item);
+  }
+
+  function plateStep() {
+    timer = null;
+    if (document.hidden) {
+      platePaused = true;
+      return;
+    }
+    if (!plateBytes || !Plate.crawls(MODE)) return;
+    phase = (phase + 1) & 31;
+    plateDue += plateMs;
+    if (plateDue <= Date.now()) plateDue = Date.now() + plateMs;
+    Plate.paint(canvas, plateBytes, plateNonce, phase);
+    plateWait();
+  }
+
+  function plateWait() {
+    var wait;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (!plateMs || !plateBytes || !Plate.crawls(MODE)) return;
+    if (document.hidden) {
+      platePaused = true;
+      return;
+    }
+    platePaused = false;
+    wait = plateDue - Date.now();
+    if (wait < 1) wait = plateMs;
+    timer = setTimeout(plateStep, wait);
+  }
+
+  function plateReach() {
+    var now, late, steps;
+    if (!platePaused || pool.hidden) return;
+    platePaused = false;
+    now = Date.now();
+    if (plateDue && now >= plateDue) {
+      late = now - plateDue;
+      steps = Math.floor(late / plateMs) + 1;
+      phase = (phase + (steps % 32)) & 31;
+      plateDue += steps * plateMs;
+      Plate.paint(canvas, plateBytes, plateNonce, phase);
+    }
+    plateWait();
+  }
+
+  function pauseCrawls() {
+    var i, cell;
+    if (!gridEl.hidden) {
+      for (i = 0; i < cells.length; i++) {
+        cell = cells[i];
+        if (!cell.ms || !cell.due) continue;
+        if (cell.timer) clearTimeout(cell.timer);
+        cell.timer = null;
+        cell.paused = true;
+      }
+    }
+    if (!pool.hidden && plateMs && plateDue) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      platePaused = true;
+    }
+  }
+
+  function wakeCrawls() {
     var i;
+    if (!gridEl.hidden) {
+      for (i = 0; i < cells.length; i++) cellReach(cells[i]);
+    }
+    plateReach();
+  }
+
+  function hideGrid() {
+    var i, cell;
     for (i = 0; i < cells.length; i++) {
-      if (cells[i].timer) clearInterval(cells[i].timer);
-      cells[i].timer = null;
+      cell = cells[i];
+      if (cell.timer) clearTimeout(cell.timer);
+      cell.timer = null;
+      cell.paused = false;
+      cell.due = 0;
     }
     gridEl.hidden = true;
   }
@@ -276,7 +402,6 @@
   function showGrid() {
     var i;
     var cell;
-    var ms;
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
@@ -284,12 +409,10 @@
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
       Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
-      if (cell.timer) continue;
-      ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
-      cell.timer = setInterval(function (item) {
-        item.phase = (item.phase + 1) & 31;
-        Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
-      }, ms, cell);
+      if (cell.timer || cell.paused) continue;
+      if (!cell.ms) cell.ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
+      if (!cell.due) cell.due = Date.now() + cell.ms;
+      cellWait(cell);
     }
     fit();
   }
@@ -308,11 +431,11 @@
     n = 0;
     for (i = 0; i < 4; i++) n = (n * 256) + hash[i];
     phase = 0;
-    timer = setInterval(function () {
-      if (!Plate.crawls(MODE)) return;
-      phase = (phase + 1) & 31;
-      Plate.paint(canvas, bytes, nonce, phase);
-    }, (6 + (n % 7)) * 1000);
+    plateBytes = bytes;
+    plateNonce = nonce;
+    plateMs = (6 + (n % 7)) * 1000;
+    plateDue = Date.now() + plateMs;
+    plateWait();
   }
 
   function showPlate(bytes, nonce) {
@@ -556,6 +679,10 @@
     worker.postMessage({ start: true });
   }
 
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) pauseCrawls();
+    else wakeCrawls();
+  });
   buildGrid();
   showGrid();
   readLeft();

@@ -27,6 +27,9 @@
   var mode = "";
   var timer = null;
   var phase = 0;
+  var crawlMs = 0;
+  var crawlDue = 0;
+  var crawlPaused = false;
   var heldBytes = null;
   var heldNonce = 0;
   var heldPace = null;
@@ -72,9 +75,58 @@
   }
 
   function disarm() {
-    if (timer) clearInterval(timer);
+    if (timer) clearTimeout(timer);
     timer = null;
     phase = 0;
+    crawlPaused = false;
+    crawlDue = 0;
+    crawlMs = 0;
+  }
+
+  function stepCrawl() {
+    timer = null;
+    if (document.hidden) {
+      crawlPaused = true;
+      return;
+    }
+    if (!heldBytes || !Plate.crawls(mode)) return;
+    phase = (phase + 1) & 31;
+    crawlDue += crawlMs;
+    if (crawlDue <= Date.now()) crawlDue = Date.now() + crawlMs;
+    Plate.paint(canvas, heldBytes, heldNonce, phase);
+    fit();
+    waitCrawl();
+  }
+
+  function waitCrawl() {
+    var wait;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (!crawlMs || !heldBytes || !Plate.crawls(mode)) return;
+    if (document.hidden) {
+      crawlPaused = true;
+      return;
+    }
+    crawlPaused = false;
+    wait = crawlDue - Date.now();
+    if (wait < 1) wait = crawlMs;
+    timer = setTimeout(stepCrawl, wait);
+  }
+
+  /* Time spent hidden counts, and only the step that time reached is drawn. */
+  function reachCrawl() {
+    var now, late, steps;
+    if (!crawlPaused) return;
+    crawlPaused = false;
+    now = Date.now();
+    if (crawlDue && now >= crawlDue && heldBytes && Plate.crawls(mode)) {
+      late = now - crawlDue;
+      steps = Math.floor(late / crawlMs) + 1;
+      phase = (phase + (steps % 32)) & 31;
+      crawlDue += steps * crawlMs;
+      Plate.paint(canvas, heldBytes, heldNonce, phase);
+    }
+    waitCrawl();
   }
 
   function checksum(raw) {
@@ -115,12 +167,9 @@
     n = 0;
     for (i = 0; i < 4; i++) n = (n * 256) + hash[i];
     phase = 0;
-    timer = setInterval(function () {
-      if (!Plate.crawls(mode)) return;
-      phase = (phase + 1) & 31;
-      Plate.paint(canvas, bytes, nonce, phase);
-      fit();
-    }, (6 + (n % 7)) * 1000);
+    crawlMs = (6 + (n % 7)) * 1000;
+    crawlDue = Date.now() + crawlMs;
+    waitCrawl();
   }
 
   function restoreWhisper(el) {
@@ -213,7 +262,7 @@
   function returnLive() {
     setNote("");
     press("open");
-    if (!timer && heldBytes) arm(heldBytes, heldNonce, heldPace);
+    if (!timer && !crawlPaused && heldBytes) arm(heldBytes, heldNonce, heldPace);
   }
 
   function badKey() {
@@ -607,6 +656,15 @@
     if (Plate.parseAddress(raw) && Plate.checksumState(raw) !== "parse") openKey(raw, "mainnet");
   });
 
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (crawlMs && crawlDue) crawlPaused = true;
+      return;
+    }
+    reachCrawl();
+  });
   window.addEventListener("resize", fit);
   fit();
   boot();
