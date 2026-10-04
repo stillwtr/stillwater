@@ -85,19 +85,33 @@ function proofAt(index) {
   return proof;
 }
 
-fetch("../snapshot/walkers.txt").then(function (res) {
-  if (!res.ok) throw new Error("missing");
-  return res.text();
-}).then(function (text) {
-  build(text);
-  postMessage({ ready: true });
-}).catch(function (err) {
-  postMessage({ ready: false, match: !!(err && err.message === "root") });
-});
+var started = false;
+
+function begin() {
+  if (started) return;
+  started = true;
+  fetch("../snapshot/walkers.txt").then(function (res) {
+    if (!res.ok) throw new Error("missing");
+    return res.text();
+  }).then(function (text) {
+    build(text);
+    postMessage({ ready: true });
+  }).catch(function (err) {
+    postMessage({ ready: false, match: !!(err && err.message === "root") });
+  });
+}
 
 onmessage = function (ev) {
-  var addr = String((ev.data && ev.data.addr) || "").toLowerCase();
-  var index = findIndex(addr);
-  if (index < 0) postMessage({ id: ev.data.id, miss: true });
-  else postMessage({ id: ev.data.id, proof: proofAt(index) });
+  var data = ev.data || {};
+  var addr;
+  var index;
+  if (data.start) {
+    begin();
+    return;
+  }
+  if (!layers.length) return;
+  addr = String(data.addr || "").toLowerCase();
+  index = findIndex(addr);
+  if (index < 0) postMessage({ id: data.id, miss: true });
+  else postMessage({ id: data.id, proof: proofAt(index) });
 };

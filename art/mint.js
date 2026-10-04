@@ -32,7 +32,9 @@
   var heldProof = null;
   var askId = 0;
   var pending = null;
-  var worker = new Worker("hall-worker.js");
+  var worker = null;
+  var hallStarted = false;
+  var DOOR = "https://metamask.app.link/dapp/stillwtr.github.io/stillwater/art/mint.html";
   var copyTimer = null;
   var timer = null;
   var phase = 0;
@@ -188,28 +190,22 @@
   }
 
   function fitGrid() {
-    var court = gridEl.parentElement;
     var sample = cells[0].canvas.parentElement;
     var lip = lipOf(sample);
     var gap = parseFloat(getComputedStyle(gridEl).columnGap) || 0;
-    var availW = court.clientWidth;
-    var availH = court.clientHeight;
-    var cols = 3;
+    var availW = document.documentElement.clientWidth;
+    var availH = window.innerHeight;
     var mult = 1;
     var size;
     var i;
 
-    function span(n, m) {
-      return n * (m * 128 + lip) + Math.max(0, n - 1) * gap;
+    function span(m) {
+      return 3 * (m * 128 + lip) + 2 * gap;
     }
 
-    while (span(3, mult + 1) <= availW && span(3, mult + 1) <= availH) mult += 1;
-    if (span(3, 1) > availW) {
-      mult = 1;
-      while (cols > 1 && span(cols, 1) > availW) cols -= 1;
-    }
+    while (span(mult + 1) <= availW && span(mult + 1) <= availH) mult += 1;
     size = String(mult * 128) + "px";
-    gridEl.style.gridTemplateColumns = "repeat(" + cols + ", max-content)";
+    gridEl.style.gridTemplateColumns = "repeat(3, max-content)";
     for (i = 0; i < cells.length; i++) {
       cells[i].canvas.style.width = size;
       cells[i].canvas.style.height = size;
@@ -316,7 +312,6 @@
       if (!Plate.crawls(MODE)) return;
       phase = (phase + 1) & 31;
       Plate.paint(canvas, bytes, nonce, phase);
-      fit();
     }, (6 + (n % 7)) * 1000);
   }
 
@@ -436,19 +431,22 @@
     });
   }
 
+  function openDoor() {
+    window.location.assign(DOOR);
+  }
+
   function connect() {
     if (!window.ethereum) {
-      setNote("no wallet");
+      openDoor();
       return;
     }
     setNote("");
+    startHall();
     window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
       showKey(accounts && accounts[0] ? accounts[0] : "");
-      if (!key) setNote("no wallet");
-      else applyKey();
+      if (key) applyKey();
     }).catch(function (err) {
       if (err && err.code === 4001) setNote("declined");
-      else setNote("no wallet");
     });
   }
 
@@ -467,7 +465,7 @@
 
   function mint() {
     if (!window.ethereum) {
-      setNote("no wallet");
+      openDoor();
       return;
     }
     if (!key) {
@@ -519,39 +517,44 @@
   mintBtn.addEventListener("click", mint);
   window.addEventListener("resize", fit);
 
-  worker.onerror = function () {
-    if (proofsOk) return;
-    proofsOk = false;
-    proofsReady = true;
-    listNote = "the list did not load";
-    if (key) applyKey();
-  };
-
-  worker.onmessage = function (ev) {
-    var msg = ev.data || {};
-    if (msg.ready === true) {
-      proofsOk = true;
-      proofsReady = true;
-      if (key) applyKey();
-      return;
-    }
-    if (msg.ready === false) {
+  function startHall() {
+    if (hallStarted) return;
+    hallStarted = true;
+    worker = new Worker("hall-worker.js");
+    worker.onerror = function () {
+      if (proofsOk) return;
       proofsOk = false;
       proofsReady = true;
-      listNote = msg.match ? "the list does not match" : "the list did not load";
+      listNote = "the list did not load";
       if (key) applyKey();
-      return;
-    }
-    if (!pending || msg.id !== pending.id || pending.ticket !== ticket) return;
-    if (msg.miss || !msg.proof) {
-      heldProof = null;
-      hidePlate();
-      setNote("this key is not in the hall");
-      return;
-    }
-    heldProof = msg.proof;
-    drawKey(pending.addr, pending.ticket);
-  };
+    };
+    worker.onmessage = function (ev) {
+      var msg = ev.data || {};
+      if (msg.ready === true) {
+        proofsOk = true;
+        proofsReady = true;
+        if (key) applyKey();
+        return;
+      }
+      if (msg.ready === false) {
+        proofsOk = false;
+        proofsReady = true;
+        listNote = msg.match ? "the list does not match" : "the list did not load";
+        if (key) applyKey();
+        return;
+      }
+      if (!pending || msg.id !== pending.id || pending.ticket !== ticket) return;
+      if (msg.miss || !msg.proof) {
+        heldProof = null;
+        hidePlate();
+        setNote("this key is not in the hall");
+        return;
+      }
+      heldProof = msg.proof;
+      drawKey(pending.addr, pending.ticket);
+    };
+    worker.postMessage({ start: true });
+  }
 
   buildGrid();
   showGrid();
