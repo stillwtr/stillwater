@@ -32,14 +32,22 @@
       text-align: center;
     }
     .lintel { padding: 0.85rem 1rem 0.55rem; }
-    .whisper, .left {
-      margin: 0;
+    .whisper {
+      margin: 0 0 0.45rem;
       min-height: 1em;
       text-align: center;
       color: var(--dim);
       font-weight: 500;
     }
-    .left { margin: 0.15rem 0 0.45rem; }
+    .whisper button {
+      padding: 0.45rem 0.28rem;
+      color: var(--dim);
+      font-weight: 500;
+      transition: opacity 280ms linear;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .whisper button.fade { opacity: 0; }
     .court {
       flex: 1;
       width: 100%;
@@ -47,6 +55,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .nine {
+      display: grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 0.55rem;
+      justify-content: center;
+      align-content: center;
     }
     .pool {
       line-height: 0;
@@ -89,9 +104,13 @@
   <div class="lintel">
     <button type="button" id="lintel" aria-live="polite"></button>
   </div>
-  <p class="whisper" id="price">0.00420 eth</p>
-  <p class="left" id="left">512</p>
+  <p class="whisper" id="figure">
+    <button type="button" id="price" data-name="mint price" data-value="0.00420 eth">0.00420 eth</button>
+    <span aria-hidden="true"> · </span>
+    <button type="button" id="left" data-name="remaining" data-value="512">512</button>
+  </p>
   <div class="court">
+    <div class="nine" id="grid"></div>
     <div class="pool" id="pool-wrap" hidden>
       <canvas id="pool" width="128" height="128"></canvas>
     </div>

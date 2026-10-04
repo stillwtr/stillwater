@@ -11,9 +11,19 @@
   var note = document.getElementById("note");
   var connectBtn = document.getElementById("connect");
   var mintBtn = document.getElementById("mint");
+  var priceBtn = document.getElementById("price");
   var left = document.getElementById("left");
+  var gridEl = document.getElementById("grid");
   var pool = document.getElementById("pool-wrap");
   var canvas = document.getElementById("pool");
+  var COL_ADDR = [
+    "0x0000000000000000000000000000000000000002",
+    "0x0000000000000000000000000000000000000003",
+    "0x0000000000000000000000000000000000000001"
+  ];
+  var ROWS = [1, 256, 4096];
+  var cells = [];
+  var figureToken = 0;
   var key = "";
   var proofsReady = false;
   var proofsOk = false;
@@ -146,7 +156,7 @@
     phase = 0;
   }
 
-  function fit() {
+  function fitPlate() {
     var room = Math.min(window.innerWidth, window.innerHeight - 156);
     var mult = Math.max(1, Math.floor(room / 128));
     var px = String(mult * 128) + "px";
@@ -154,9 +164,104 @@
     canvas.style.height = px;
   }
 
+  function fitGrid() {
+    var avail = Math.min(window.innerWidth - 28, window.innerHeight - 200);
+    var maxCell = Math.floor((avail - 16) / 3) - 6;
+    var mult = Math.floor(maxCell / 128);
+    var px = mult >= 1 ? mult * 128 : Math.max(48, maxCell);
+    var size = px + "px";
+    var i;
+    for (i = 0; i < cells.length; i++) {
+      cells[i].canvas.style.width = size;
+      cells[i].canvas.style.height = size;
+    }
+  }
+
+  function fit() {
+    if (pool.hidden) fitGrid();
+    else fitPlate();
+  }
+
+  function cellPace(cell) {
+    var buf = new Uint8Array(24);
+    var n = cell.nonce;
+    var hash;
+    var acc = 0;
+    var i;
+    buf.set(cell.bytes, 0);
+    buf[20] = (n >>> 24) & 255;
+    buf[21] = (n >>> 16) & 255;
+    buf[22] = (n >>> 8) & 255;
+    buf[23] = n & 255;
+    hash = PlateKeccak.keccak256(buf);
+    for (i = 0; i < 4; i++) acc = (acc * 256) + hash[i];
+    return (6 + (acc % 7)) * 1000;
+  }
+
+  function buildGrid() {
+    var cols = [null, null, null];
+    var row;
+    var pal;
+    var bytes;
+    var wrap;
+    var cv;
+    var cell;
+    var i;
+    for (i = 0; i < COL_ADDR.length; i++) {
+      bytes = Plate.parseAddress(COL_ADDR[i]);
+      cols[Plate.derive(bytes).palette] = bytes;
+    }
+    for (row = 0; row < ROWS.length; row++) {
+      for (pal = 0; pal < 3; pal++) {
+        wrap = document.createElement("div");
+        wrap.className = "pool";
+        cv = document.createElement("canvas");
+        cv.width = 128;
+        cv.height = 128;
+        cv.setAttribute("data-pal", Plate.PALETTES[pal].name);
+        cv.setAttribute("data-nonce", String(ROWS[row]));
+        wrap.appendChild(cv);
+        gridEl.appendChild(wrap);
+        cell = { canvas: cv, bytes: cols[pal], nonce: ROWS[row], phase: 0, timer: null };
+        cell.canvas.setAttribute("data-pace", String(cellPace(cell) / 1000));
+        cells.push(cell);
+      }
+    }
+  }
+
+  function hideGrid() {
+    var i;
+    for (i = 0; i < cells.length; i++) {
+      if (cells[i].timer) clearInterval(cells[i].timer);
+      cells[i].timer = null;
+    }
+    gridEl.hidden = true;
+  }
+
+  function showGrid() {
+    var i;
+    var cell;
+    var ms;
+    disarm();
+    pool.hidden = true;
+    gridEl.hidden = false;
+    for (i = 0; i < cells.length; i++) {
+      cell = cells[i];
+      Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
+      if (cell.timer) continue;
+      ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
+      cell.timer = setInterval(function (item) {
+        item.phase = (item.phase + 1) & 31;
+        Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
+      }, ms, cell);
+    }
+    fit();
+  }
+
   function hidePlate() {
     disarm();
     pool.hidden = true;
+    showGrid();
   }
 
   function arm(bytes, nonce) {
@@ -176,10 +281,42 @@
   }
 
   function showPlate(bytes, nonce) {
+    hideGrid();
     pool.hidden = false;
     Plate.paint(canvas, bytes, nonce, 0);
     fit();
     arm(bytes, nonce);
+  }
+
+  function restoreFigure(el) {
+    el.classList.remove("fade");
+    el.removeAttribute("data-open");
+    el.textContent = el.getAttribute("data-value") || "";
+  }
+
+  function showFigureName(el) {
+    var label = el.getAttribute("data-name");
+    var value = el.getAttribute("data-value");
+    var token;
+    if (!label || !value) return;
+    token = ++figureToken;
+    restoreFigure(priceBtn);
+    restoreFigure(left);
+    el.setAttribute("data-open", "1");
+    el.textContent = label;
+    setTimeout(function () {
+      if (token !== figureToken) return;
+      el.classList.add("fade");
+      setTimeout(function () {
+        if (token !== figureToken) return;
+        restoreFigure(el);
+      }, 280);
+    }, 1750);
+  }
+
+  function setRemaining(n) {
+    left.setAttribute("data-value", String(n));
+    if (left.getAttribute("data-open") !== "1") left.textContent = String(n);
   }
 
   function rpc(method, params, i) {
@@ -236,7 +373,7 @@
   }
 
   function readLeft() {
-    left.textContent = String(SUPPLY);
+    setRemaining(SUPPLY);
     if (!STILL) return;
     rpc("eth_call", [{ to: STILL, data: NEXT_ID }, "latest"]).then(function (hex) {
       var n = parseInt(hex, 16);
@@ -244,7 +381,7 @@
       if (!(n >= 0)) return;
       remain = SUPPLY - n;
       if (remain < 0) remain = 0;
-      left.textContent = String(remain);
+      setRemaining(remain);
     }).catch(function () {});
   }
 
@@ -335,6 +472,8 @@
     var full = lintel.getAttribute("data-full");
     if (full) copyText(full);
   });
+  priceBtn.addEventListener("click", function () { showFigureName(priceBtn); });
+  left.addEventListener("click", function () { showFigureName(left); });
   connectBtn.addEventListener("click", onConnect);
   mintBtn.addEventListener("click", mint);
   window.addEventListener("resize", fit);
@@ -373,6 +512,7 @@
     drawKey(pending.addr, pending.ticket);
   };
 
+  buildGrid();
+  showGrid();
   readLeft();
-  fit();
 })();
