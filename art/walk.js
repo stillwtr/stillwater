@@ -14,7 +14,6 @@
   var WEATHER = "the chain did not answer";
 
   var canvas = document.getElementById("pool");
-  var lintel = document.getElementById("lintel");
   var note = document.getElementById("note");
   var field = document.getElementById("field");
   var EXAMPLE = "0xd934CC70B1b06256581527a534285f5bd6A7eDc7";
@@ -34,7 +33,7 @@
   var ticket = 0;
   var index = 0;
   var searchKey = "";
-  var fromSearch = false;
+  var shownKey = "";
   var cache = {};
   var wPal = document.getElementById("w-pal");
   var wNonce = document.getElementById("w-nonce");
@@ -43,8 +42,6 @@
   var hall = { chain: "mainnet", contract: "", nextId: 0, known: false };
   var doorNext = 0;
   var doorKnown = false;
-  var copyTimer = null;
-  var copyToken = 0;
   var whisperToken = 0;
 
   function fit() {
@@ -78,13 +75,6 @@
     if (timer) clearInterval(timer);
     timer = null;
     phase = 0;
-  }
-
-  function shortKey(text) {
-    var s = text.trim();
-    if (s.slice(0, 2) === "0x" || s.slice(0, 2) === "0X") s = s.slice(2);
-    if (s.length < 10) return "";
-    return "0x" + s.slice(0, 6) + "…" + s.slice(s.length - 4);
   }
 
   function checksum(raw) {
@@ -193,15 +183,11 @@
   }
 
   function show(bytes, nonce, who, crawlBytes) {
-    var full = checksum(who);
+    shownKey = checksum(who);
     heldBytes = bytes;
     heldNonce = nonce;
     heldPace = crawlBytes || bytes;
     setNote("");
-    endCopyFlash();
-    lintel.textContent = shortKey(full);
-    lintel.setAttribute("data-full", full);
-    lintel.removeAttribute("title");
     paintWhisper(bytes, nonce);
     Plate.paint(canvas, bytes, nonce, 0);
     fit();
@@ -209,10 +195,7 @@
   }
 
   function clearLintel() {
-    endCopyFlash();
-    lintel.textContent = "";
-    lintel.removeAttribute("data-full");
-    lintel.removeAttribute("title");
+    shownKey = "";
     clearWhisper();
   }
 
@@ -403,7 +386,6 @@
     count(chain, raw, "latest").then(function (nonce) {
       if (id !== ticket) return;
       index = 0;
-      fromSearch = false;
       searchKey = checksum(raw);
       press("open");
       show(bytes, nonce, raw, paceBytes || bytes);
@@ -537,81 +519,15 @@
 
   function step(dir) {
     var i;
-    var entering = false;
     if (!hall || !hall.known || !(hall.nextId >= 1)) return;
     if (!(index >= 1 && index <= hall.nextId)) {
-      entering = true;
       i = 1;
     } else {
       i = index + dir;
       if (i < 1 || i > hall.nextId) return;
     }
-    if (entering && searchKey) fromSearch = true;
     if (mode === "dated") openDated(hall.chain, hall.contract, String(i));
     else openLiveToken(hall.chain, hall.contract, i);
-  }
-
-  function endCopyFlash() {
-    copyToken += 1;
-    if (copyTimer) {
-      clearTimeout(copyTimer);
-      copyTimer = null;
-    }
-    lintel.classList.remove("copied");
-  }
-
-  function markCopied() {
-    var full = lintel.getAttribute("data-full");
-    var token;
-    if (!full) return;
-    token = copyToken;
-    lintel.classList.add("copied");
-    lintel.textContent = "copied";
-    if (copyTimer) clearTimeout(copyTimer);
-    copyTimer = setTimeout(function () {
-      copyTimer = null;
-      if (token !== copyToken) return;
-      lintel.classList.remove("copied");
-      if (lintel.getAttribute("data-full") === full) lintel.textContent = shortKey(full);
-    }, 1100);
-  }
-
-  function copyFallback(text) {
-    var area = document.createElement("textarea");
-    var ok = false;
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.top = "0";
-    area.style.left = "0";
-    area.style.width = "2em";
-    area.style.height = "2em";
-    area.style.padding = "0";
-    area.style.border = "none";
-    area.style.outline = "none";
-    area.style.opacity = "0";
-    document.body.appendChild(area);
-    area.focus();
-    area.select();
-    area.setSelectionRange(0, text.length);
-    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-    document.body.removeChild(area);
-    try { lintel.focus({ preventScroll: true }); } catch (e2) { /* quiet */ }
-    return ok;
-  }
-
-  function copyText(text) {
-    var clip = null;
-    var legacy = false;
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      try { clip = navigator.clipboard.writeText(text); }
-      catch (e) { clip = null; }
-    }
-    legacy = copyFallback(text);
-    if (legacy) markCopied();
-    if (clip && typeof clip.then === "function") {
-      clip.then(function () { markCopied(); }, function () {});
-    }
   }
 
   liveBtn.addEventListener("click", function () {
@@ -624,13 +540,6 @@
     typed = typed || searchKey || EXAMPLE;
     openKey(typed, "mainnet", null, typed.toLowerCase() === EXAMPLE.toLowerCase() ? false : true);
   });
-
-  function restoreSearch() {
-    var key = searchKey || EXAMPLE;
-    var example = key.toLowerCase() === EXAMPLE.toLowerCase();
-    field.value = example ? "" : key;
-    openKey(key, "mainnet", null, example ? false : true);
-  }
 
   datedBtn.addEventListener("click", function () {
     var q, contract, typed;
@@ -661,11 +570,10 @@
 
   searchBtn.addEventListener("click", function () {
     var open = field.hidden;
-    var trapped = fromSearch && index >= 1 && searchKey;
     field.hidden = !open;
     searchBtn.setAttribute("aria-pressed", open ? "true" : "false");
-    if (trapped) restoreSearch();
     if (open) {
+      field.value = shownKey || EXAMPLE;
       field.focus();
       field.select();
     }
@@ -673,11 +581,6 @@
 
   prevBtn.addEventListener("click", function () { step(-1); });
   nextBtn.addEventListener("click", function () { step(1); });
-
-  lintel.addEventListener("click", function () {
-    var full = lintel.getAttribute("data-full");
-    if (full) copyText(full);
-  });
 
   [wPal, wNonce, wWater].forEach(function (el) {
     el.addEventListener("click", function (event) {

@@ -688,8 +688,11 @@
       img.data[o + 2] = rgb[p3 + 2];
       img.data[o + 3] = 255;
     }
-    canvas.width = N;
-    canvas.height = N;
+    /* Setting width clears the bitmap, so a crawl step skips it when the buffer is already N. */
+    if (canvas.width !== N || canvas.height !== N) {
+      canvas.width = N;
+      canvas.height = N;
+    }
     ctx.putImageData(img, 0, 0);
     return p;
   }

@@ -29,7 +29,7 @@
     }
     .name {
       margin: 0;
-      padding: 0.85rem 1rem 0.15rem;
+      padding: 0.85rem 1rem 0;
       text-align: center;
     }
     .name a {
@@ -40,15 +40,15 @@
       text-decoration: none;
       cursor: pointer;
     }
-    .lintel, .note {
+    .note {
       min-height: 1em;
       margin: 0;
       text-align: center;
     }
-    .lintel { padding: 0.05rem 1rem 0.45rem; }
     .whisper {
-      margin: 0.35rem 0 0;
+      margin: 0;
       min-height: 1em;
+      padding: 0.05rem 1rem 0.45rem;
       text-align: center;
       color: var(--dim);
       font-weight: 500;
@@ -106,14 +106,6 @@
       color: var(--ink);
       font-weight: 700;
     }
-    #lintel {
-      color: var(--quiet);
-      font-size: 0.65rem;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      transition: opacity 180ms linear;
-    }
-    #lintel.copied { opacity: 0.45; }
     .whisper button {
       padding: 0.45rem 0.28rem;
       color: var(--dim);
@@ -138,11 +130,6 @@
 </head>
 <body>
   <p class="name"><a href="mint.html">stillwater</a></p>
-  <div class="court">
-    <div class="pool">
-      <canvas id="pool" width="128" height="128"></canvas>
-    </div>
-  </div>
   <p class="whisper" id="whisper" hidden>
     <button type="button" id="w-pal" data-name="palette"></button>
     <span aria-hidden="true"> · </span>
@@ -150,8 +137,10 @@
     <span aria-hidden="true"> · </span>
     <button type="button" id="w-water" data-name="% water"></button>
   </p>
-  <div class="lintel">
-    <button type="button" id="lintel" aria-live="polite"></button>
+  <div class="court">
+    <div class="pool">
+      <canvas id="pool" width="128" height="128"></canvas>
+    </div>
   </div>
   <div class="threshold">
     <div class="words">
