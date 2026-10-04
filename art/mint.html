@@ -11,6 +11,7 @@
       --lip: #10161B;
       --ink: #D5DDE4;
       --dim: #8E9BA6;
+      --quiet: #74808C;
       --plate: #E4E7EC;
     }
     html, body { margin: 0; height: 100%; }
@@ -39,24 +40,14 @@
       text-decoration: none;
       cursor: pointer;
     }
-    .seen {
-      margin: 0 0 0.35rem;
-      padding: 0 1rem;
-      text-align: center;
-      color: var(--dim);
-      font-size: 0.75rem;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      text-transform: none;
-    }
     .lintel, .note {
       min-height: 1em;
       margin: 0;
       text-align: center;
     }
-    .lintel { padding: 0.15rem 1rem 0.45rem; }
+    .lintel { padding: 0.05rem 1rem 0.45rem; }
     .whisper {
-      margin: 0 0 0.45rem;
+      margin: 0.35rem 0 0;
       min-height: 1em;
       text-align: center;
       color: var(--dim);
@@ -120,27 +111,32 @@
       box-shadow: none;
     }
     button[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
-    #lintel { color: var(--ink); font-weight: 500; transition: color 180ms linear; }
-    #lintel.copied { color: var(--dim); }
+    #lintel {
+      color: var(--quiet);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      transition: opacity 180ms linear;
+    }
+    #lintel.copied { opacity: 0.45; }
     .note { padding: 0.35rem 1rem 0.85rem; color: var(--dim); }
   </style>
 </head>
 <body>
   <p class="name"><a href="walk.html">stillwater</a></p>
-  <p class="seen">a lake, seen from above.</p>
-  <div class="lintel" id="lintel-wrap" hidden>
-    <button type="button" id="lintel" aria-live="polite"></button>
+  <div class="court">
+    <div class="nine" id="grid"></div>
+    <div class="pool" id="pool-wrap" hidden>
+      <canvas id="pool" width="128" height="128"></canvas>
+    </div>
   </div>
   <p class="whisper" id="figure">
     <button type="button" id="price" data-name="mint price" data-value="0.00420 eth">0.00420 eth</button>
     <span aria-hidden="true"> · </span>
     <button type="button" id="left" data-name="remaining" data-value="512">512</button>
   </p>
-  <div class="court">
-    <div class="nine" id="grid"></div>
-    <div class="pool" id="pool-wrap" hidden>
-      <canvas id="pool" width="128" height="128"></canvas>
-    </div>
+  <div class="lintel" id="lintel-wrap" hidden>
+    <button type="button" id="lintel" aria-live="polite"></button>
   </div>
   <div class="threshold">
     <div class="words">

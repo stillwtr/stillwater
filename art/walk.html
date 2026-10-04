@@ -11,6 +11,7 @@
       --lip: #10161B;
       --ink: #D5DDE4;
       --dim: #8E9BA6;
+      --quiet: #74808C;
       --plate: #E4E7EC;
     }
     html, body { margin: 0; height: 100%; }
@@ -44,9 +45,9 @@
       margin: 0;
       text-align: center;
     }
-    .lintel { padding: 0.15rem 1rem 0.55rem; }
+    .lintel { padding: 0.05rem 1rem 0.45rem; }
     .whisper {
-      margin: 0 0 0.45rem;
+      margin: 0.35rem 0 0;
       min-height: 1em;
       text-align: center;
       color: var(--dim);
@@ -106,11 +107,13 @@
       font-weight: 700;
     }
     #lintel {
-      color: var(--ink);
+      color: var(--quiet);
+      font-size: 0.65rem;
       font-weight: 500;
-      transition: color 180ms linear;
+      letter-spacing: 0.18em;
+      transition: opacity 180ms linear;
     }
-    #lintel.copied { color: var(--dim); }
+    #lintel.copied { opacity: 0.45; }
     .whisper button {
       padding: 0.45rem 0.28rem;
       color: var(--dim);
@@ -135,8 +138,10 @@
 </head>
 <body>
   <p class="name"><a href="mint.html">stillwater</a></p>
-  <div class="lintel">
-    <button type="button" id="lintel" aria-live="polite"></button>
+  <div class="court">
+    <div class="pool">
+      <canvas id="pool" width="128" height="128"></canvas>
+    </div>
   </div>
   <p class="whisper" id="whisper" hidden>
     <button type="button" id="w-pal" data-name="palette"></button>
@@ -145,10 +150,8 @@
     <span aria-hidden="true"> · </span>
     <button type="button" id="w-water" data-name="% water"></button>
   </p>
-  <div class="court">
-    <div class="pool">
-      <canvas id="pool" width="128" height="128"></canvas>
-    </div>
+  <div class="lintel">
+    <button type="button" id="lintel" aria-live="polite"></button>
   </div>
   <div class="threshold">
     <div class="words">
