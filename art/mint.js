@@ -266,55 +266,74 @@
         cv.setAttribute("data-nonce", String(ROWS[row]));
         wrap.appendChild(cv);
         gridEl.appendChild(wrap);
-        cell = { canvas: cv, bytes: cols[pal], nonce: ROWS[row], phase: 0, timer: null };
+        cell = { canvas: cv, bytes: cols[pal], nonce: ROWS[row], phase: 0 };
         cell.canvas.setAttribute("data-pace", String(cellPace(cell) / 1000));
         cells.push(cell);
       }
     }
   }
 
-  function cellStep(item) {
-    item.timer = null;
-    if (document.hidden) {
-      item.paused = true;
-      return;
-    }
-    item.phase = (item.phase + 1) & 31;
-    item.due += item.ms;
-    if (item.due <= Date.now()) item.due = Date.now() + item.ms;
-    Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
-    cellWait(item);
+  var gridTimer = null;
+
+  function clearGridTimer() {
+    if (gridTimer) clearTimeout(gridTimer);
+    gridTimer = null;
   }
 
-  function cellWait(item) {
+  /* One paint of the step a plate has reached. Missed steps are not drawn. */
+  function paintReached(cell, now) {
+    var late, steps;
+    if (!cell.ms || !cell.due || now < cell.due) return;
+    late = now - cell.due;
+    steps = Math.floor(late / cell.ms) + 1;
+    cell.phase = (cell.phase + (steps % 32)) & 31;
+    cell.due += steps * cell.ms;
+    Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
+  }
+
+  /* A slow paint must not leave the next wake already due. */
+  function parkBehind(now) {
+    var i, cell;
+    for (i = 0; i < cells.length; i++) {
+      cell = cells[i];
+      if (!cell.ms || !cell.due || cell.paused) continue;
+      if (cell.due <= now) cell.due = now + cell.ms;
+    }
+  }
+
+  function nextGridWait(now) {
+    var i, cell, best;
+    best = 0;
+    for (i = 0; i < cells.length; i++) {
+      cell = cells[i];
+      if (!cell.ms || !cell.due || cell.paused) continue;
+      if (!best || cell.due < best) best = cell.due;
+    }
+    if (!best) return 0;
+    if (best <= now) return 1;
+    return best - now;
+  }
+
+  function armGridWait() {
     var wait;
-    if (item.timer) clearTimeout(item.timer);
-    item.timer = null;
-    if (!item.ms) return;
-    if (document.hidden) {
-      item.paused = true;
-      return;
-    }
-    item.paused = false;
-    wait = item.due - Date.now();
-    if (wait < 1) wait = item.ms;
-    item.timer = setTimeout(cellStep, wait, item);
+    clearGridTimer();
+    if (document.hidden || gridEl.hidden) return;
+    wait = nextGridWait(Date.now());
+    if (!wait) return;
+    gridTimer = setTimeout(gridWake, wait);
   }
 
-  /* Time spent hidden counts, and only the step that time reached is drawn. */
-  function cellReach(item) {
-    var now, late, steps;
-    if (!item.paused) return;
-    item.paused = false;
+  function gridWake() {
+    var now, i;
+    gridTimer = null;
+    if (document.hidden || gridEl.hidden) return;
     now = Date.now();
-    if (item.due && now >= item.due) {
-      late = now - item.due;
-      steps = Math.floor(late / item.ms) + 1;
-      item.phase = (item.phase + (steps % 32)) & 31;
-      item.due += steps * item.ms;
-      Plate.paint(item.canvas, item.bytes, item.nonce, item.phase);
+    for (i = 0; i < cells.length; i++) {
+      if (cells[i].paused) continue;
+      paintReached(cells[i], now);
     }
-    cellWait(item);
+    parkBehind(Date.now());
+    armGridWait();
   }
 
   function plateStep() {
@@ -362,14 +381,12 @@
   }
 
   function pauseCrawls() {
-    var i, cell;
+    var i;
     if (!gridEl.hidden) {
+      clearGridTimer();
       for (i = 0; i < cells.length; i++) {
-        cell = cells[i];
-        if (!cell.ms || !cell.due) continue;
-        if (cell.timer) clearTimeout(cell.timer);
-        cell.timer = null;
-        cell.paused = true;
+        if (!cells[i].ms || !cells[i].due) continue;
+        cells[i].paused = true;
       }
     }
     if (!pool.hidden && plateMs && plateDue) {
@@ -380,28 +397,32 @@
   }
 
   function wakeCrawls() {
-    var i;
+    var i, now;
     if (!gridEl.hidden) {
-      for (i = 0; i < cells.length; i++) cellReach(cells[i]);
+      now = Date.now();
+      for (i = 0; i < cells.length; i++) {
+        if (!cells[i].paused) continue;
+        cells[i].paused = false;
+        paintReached(cells[i], now);
+      }
+      parkBehind(Date.now());
+      armGridWait();
     }
     plateReach();
   }
 
   function hideGrid() {
-    var i, cell;
+    var i;
+    clearGridTimer();
     for (i = 0; i < cells.length; i++) {
-      cell = cells[i];
-      if (cell.timer) clearTimeout(cell.timer);
-      cell.timer = null;
-      cell.paused = false;
-      cell.due = 0;
+      cells[i].paused = false;
+      cells[i].due = 0;
     }
     gridEl.hidden = true;
   }
 
   function showGrid() {
-    var i;
-    var cell;
+    var i, cell, now;
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
@@ -409,11 +430,16 @@
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
       Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
-      if (cell.timer || cell.paused) continue;
-      if (!cell.ms) cell.ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
-      if (!cell.due) cell.due = Date.now() + cell.ms;
-      cellWait(cell);
     }
+    /* Dues start after the opening paints, so a slow first frame cannot trip the next step. */
+    now = Date.now();
+    for (i = 0; i < cells.length; i++) {
+      cell = cells[i];
+      if (!cell.ms) cell.ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
+      cell.due = now + cell.ms;
+      cell.paused = !!document.hidden;
+    }
+    if (!document.hidden) armGridWait();
     fit();
   }
 
