@@ -7,6 +7,7 @@
   var RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
   var MODE = "open";
 
+  var lintelWrap = document.getElementById("lintel-wrap");
   var lintel = document.getElementById("lintel");
   var note = document.getElementById("note");
   var connectBtn = document.getElementById("connect");
@@ -68,20 +69,36 @@
     return out;
   }
 
-  function showKey(value) {
-    key = value || "";
+  function clearAddress() {
     if (copyTimer) clearTimeout(copyTimer);
     copyTimer = null;
     lintel.classList.remove("copied");
+    lintel.textContent = "";
+    lintel.removeAttribute("data-full");
+    lintelWrap.hidden = true;
+  }
+
+  function showAddress() {
+    var full;
     if (!key) {
-      lintel.textContent = "";
-      lintel.removeAttribute("data-full");
+      clearAddress();
+      return;
+    }
+    full = checksum(key);
+    lintelWrap.hidden = false;
+    lintel.classList.remove("copied");
+    lintel.textContent = shortKey(full);
+    lintel.setAttribute("data-full", full);
+  }
+
+  function showKey(value) {
+    key = value || "";
+    clearAddress();
+    if (!key) {
       connectBtn.textContent = "connect";
       connectBtn.setAttribute("aria-pressed", "false");
       return;
     }
-    lintel.textContent = shortKey(checksum(key));
-    lintel.setAttribute("data-full", checksum(key));
     connectBtn.textContent = "disconnect";
     connectBtn.setAttribute("aria-pressed", "true");
   }
@@ -156,8 +173,14 @@
     phase = 0;
   }
 
+  function lipOf(el) {
+    var pad = getComputedStyle(el);
+    return (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
+  }
+
   function fitPlate() {
-    var room = Math.min(window.innerWidth, window.innerHeight - 156);
+    var court = canvas.parentElement.parentElement;
+    var room = Math.min(court.clientWidth, court.clientHeight) - lipOf(canvas.parentElement);
     var mult = Math.max(1, Math.floor(room / 128));
     var px = String(mult * 128) + "px";
     canvas.style.width = px;
@@ -165,12 +188,28 @@
   }
 
   function fitGrid() {
-    var avail = Math.min(window.innerWidth - 28, window.innerHeight - 200);
-    var maxCell = Math.floor((avail - 16) / 3) - 6;
-    var mult = Math.floor(maxCell / 128);
-    var px = mult >= 1 ? mult * 128 : Math.max(48, maxCell);
-    var size = px + "px";
+    var court = gridEl.parentElement;
+    var sample = cells[0].canvas.parentElement;
+    var lip = lipOf(sample);
+    var gap = parseFloat(getComputedStyle(gridEl).columnGap) || 0;
+    var availW = court.clientWidth;
+    var availH = court.clientHeight;
+    var cols = 3;
+    var mult = 1;
+    var size;
     var i;
+
+    function span(n, m) {
+      return n * (m * 128 + lip) + Math.max(0, n - 1) * gap;
+    }
+
+    while (span(3, mult + 1) <= availW && span(3, mult + 1) <= availH) mult += 1;
+    if (span(3, 1) > availW) {
+      mult = 1;
+      while (cols > 1 && span(cols, 1) > availW) cols -= 1;
+    }
+    size = String(mult * 128) + "px";
+    gridEl.style.gridTemplateColumns = "repeat(" + cols + ", max-content)";
     for (i = 0; i < cells.length; i++) {
       cells[i].canvas.style.width = size;
       cells[i].canvas.style.height = size;
@@ -245,6 +284,7 @@
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
+    clearAddress();
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
       Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
@@ -283,6 +323,7 @@
   function showPlate(bytes, nonce) {
     hideGrid();
     pool.hidden = false;
+    showAddress();
     Plate.paint(canvas, bytes, nonce, 0);
     fit();
     arm(bytes, nonce);

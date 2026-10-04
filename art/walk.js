@@ -48,7 +48,10 @@
   var whisperToken = 0;
 
   function fit() {
-    var room = Math.min(window.innerWidth, window.innerHeight - 156);
+    var court = canvas.parentElement.parentElement;
+    var pad = getComputedStyle(canvas.parentElement);
+    var lip = (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
+    var room = Math.min(court.clientWidth, court.clientHeight) - lip;
     var mult = Math.max(1, Math.floor(room / 128));
     var px = String(mult * 128) + "px";
     canvas.style.width = px;

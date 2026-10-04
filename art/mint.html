@@ -26,12 +26,35 @@
       flex-direction: column;
       min-height: 100%;
     }
+    .name {
+      margin: 0;
+      padding: 0.85rem 1rem 0.15rem;
+      text-align: center;
+    }
+    .name a {
+      color: var(--ink);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.24em;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .seen {
+      margin: 0 0 0.35rem;
+      padding: 0 1rem;
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: none;
+    }
     .lintel, .note {
       min-height: 1em;
       margin: 0;
       text-align: center;
     }
-    .lintel { padding: 0.85rem 1rem 0.55rem; }
+    .lintel { padding: 0.15rem 1rem 0.45rem; }
     .whisper {
       margin: 0 0 0.45rem;
       min-height: 1em;
@@ -51,14 +74,16 @@
     .court {
       flex: 1;
       width: 100%;
+      min-height: 0;
       background: var(--floor);
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: safe center;
+      justify-content: safe center;
+      overflow: auto;
     }
     .nine {
       display: grid;
-      grid-template-columns: repeat(3, auto);
+      grid-template-columns: repeat(3, max-content);
       gap: 0.55rem;
       justify-content: center;
       align-content: center;
@@ -71,8 +96,8 @@
     canvas {
       display: block;
       background: var(--plate);
-      image-rendering: pixelated;
       image-rendering: crisp-edges;
+      image-rendering: pixelated;
     }
     .threshold {
       display: flex;
@@ -101,7 +126,9 @@
   </style>
 </head>
 <body>
-  <div class="lintel">
+  <p class="name"><a href="walk.html">stillwater</a></p>
+  <p class="seen">a lake, seen from above.</p>
+  <div class="lintel" id="lintel-wrap" hidden>
     <button type="button" id="lintel" aria-live="polite"></button>
   </div>
   <p class="whisper" id="figure">
