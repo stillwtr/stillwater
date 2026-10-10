@@ -19,8 +19,14 @@
     mailboxOf: "0x7d1debb6",
     setMailbox: "0x386de411",
     list: "0x50fd7367",
+    cancel: "0x40e58ee5",
+    date: "0x60c757ba",
     transferFrom: "0x23b872dd"
   };
+  /* Local four-print hall. It is not deployed and it does not mint. */
+  var FOUR = "0x1111111111111111111111111111111111111111";
+  var FOUR_STAND = "0xdddddddddddddddddddddddddddddddddddd0004";
+  var fourBook = null;
   var NO_PRINT = "there is no dated print";
   var NO_LISTED = "there is no listed print";
   var NO_HELD = "there is no held print";
@@ -42,6 +48,8 @@
   var heldBtn = document.getElementById("held");
   var parkBtn = document.getElementById("park");
   var listBtn = document.getElementById("list");
+  var cancelBtn = document.getElementById("cancel");
+  var dateBtn = document.getElementById("date");
   var prevBtn = document.getElementById("prev");
   var nextBtn = document.getElementById("next");
   var askEl = document.getElementById("ask");
@@ -450,7 +458,189 @@
     setNote("checksum");
   }
 
+  function u256(n) {
+    var v;
+    try { v = BigInt(n); } catch (e) { v = 0n; }
+    if (v < 0n) v = 0n;
+    return "0x" + v.toString(16).padStart(64, "0");
+  }
+
+  function u256Addr(addr) {
+    var s = String(addr || "").replace(/^0x/i, "").toLowerCase();
+    if (s.length > 40) s = s.slice(-40);
+    return "0x" + s.padStart(64, "0");
+  }
+
+  function fourMinter(n) {
+    return "0x" + n.toString(16).padStart(40, "0");
+  }
+
+  function fourFresh() {
+    var z = "0x" + "0".repeat(40);
+    var stand = FOUR_STAND;
+    return {
+      head: 100,
+      rows: [
+        null,
+        { block: 0, by: z, minter: fourMinter(1), title: fourMinter(1), owner: fourMinter(1), mail: z, price: 0n, live: 11, shut: 11 },
+        { block: 5, by: fourMinter(2), minter: fourMinter(2), title: stand, owner: stand, mail: z, price: 4200000000000000n, live: 22, shut: 3 },
+        { block: 0, by: z, minter: fourMinter(3), title: stand, owner: stand, mail: z, price: 0n, live: 33, shut: 33 },
+        { block: 8, by: fourMinter(4), minter: fourMinter(4), title: fourMinter(4), owner: stand, mail: z, price: 1000000000000000n, live: 44, shut: 7 }
+      ]
+    };
+  }
+
+  function isFour(contract) {
+    return sameAddr(contract, FOUR);
+  }
+
+  /* The connected key sells #2, titles #3, and holds #4. A new key retargets those seats. */
+  function fourBind(key) {
+    var who, z, rows;
+    if (!fourBook) fourBook = fourFresh();
+    who = key || FOUR_STAND;
+    z = "0x" + "0".repeat(40);
+    rows = fourBook.rows;
+    rows[2].title = who;
+    rows[2].owner = who;
+    rows[2].mail = z;
+    rows[3].title = who;
+    rows[3].owner = who;
+    rows[3].mail = z;
+    rows[4].owner = who;
+    rows[4].mail = z;
+  }
+
+  function fourWord(data, n) {
+    return String(data || "").slice(10 + n * 64, 10 + (n + 1) * 64);
+  }
+
+  function fourDrop(id) {
+    var chain = hall && hall.chain ? hall.chain : "sepolia";
+    delete cache[chain + ":" + FOUR.toLowerCase() + ":" + id];
+  }
+
+  function fourApply(tx) {
+    var data = String(tx.data || "").toLowerCase();
+    var sig = data.slice(0, 10);
+    var from = tx.from || "";
+    var id, row, vault, ask, dest;
+    if (sig === SEL.transferFrom) id = parseInt(fourWord(data, 2), 16);
+    else id = parseInt(fourWord(data, 0), 16);
+    row = fourBook && fourBook.rows[id];
+    if (!row || !from) throw new Error("plate");
+    if (sig === SEL.cancel) {
+      if (!sameAddr(from, row.title)) throw new Error("title");
+      row.price = 0n;
+      return;
+    }
+    if (sig === SEL.date) {
+      var titleSigns = sameAddr(from, row.title);
+      var vaultSigns = namedVault(row.mail) && sameAddr(from, row.mail) && sameAddr(row.owner, row.mail);
+      if (!titleSigns && !vaultSigns) throw new Error("title");
+      if (row.block) throw new Error("dated");
+      row.block = fourBook.head;
+      row.by = from;
+      fourDrop(id);
+      return;
+    }
+    if (sig === SEL.setMailbox) {
+      vault = "0x" + fourWord(data, 1).slice(-40);
+      if (!sameAddr(from, row.title) || !sameAddr(row.owner, row.title)) throw new Error("title");
+      if (!namedVault(vault) || sameAddr(vault, FOUR) || sameAddr(vault, row.title)) throw why("bad address");
+      row.mail = vault;
+      row.owner = vault;
+      row.price = 0n;
+      return;
+    }
+    if (sig === SEL.list) {
+      ask = BigInt("0x" + fourWord(data, 1));
+      if (ask <= 0n) throw new Error("price");
+      if (!sameAddr(from, row.title) || !sameAddr(row.owner, row.title)) throw new Error("title");
+      if (namedVault(row.mail)) throw why("a vault is named");
+      if (row.price > 0n) throw why("already listed");
+      row.price = ask;
+      return;
+    }
+    if (sig === SEL.transferFrom) {
+      dest = "0x" + fourWord(data, 1).slice(-40);
+      if (!sameAddr(from, row.owner) || sameAddr(from, row.title)) throw new Error("key");
+      if (!sameAddr(dest, row.title)) throw new Error("title");
+      row.owner = dest;
+      row.mail = "0x" + "0".repeat(40);
+      row.price = 0n;
+      return;
+    }
+    if (sig === SEL.buy) {
+      if (row.price <= 0n) throw new Error("price");
+      if (sameAddr(from, row.title)) throw new Error("key");
+      row.price = 0n;
+      row.owner = from;
+      row.title = from;
+      return;
+    }
+    throw new Error("plate");
+  }
+
+  function fourRpc(method, params) {
+    var to, data, sig, id, row, addr, tag, block, i, n, word;
+    if (!fourBook) fourBook = fourFresh();
+    params = params || [];
+    if (method === "eth_blockNumber") return { result: "0x" + fourBook.head.toString(16) };
+    if (method === "eth_getBlockByNumber") {
+      block = parseInt(params[0], 16);
+      if (!(block >= 0)) return { result: null };
+      return { result: { number: params[0], timestamp: "0x" + (1700000000 + block * 12).toString(16) } };
+    }
+    if (method === "eth_getTransactionCount") {
+      addr = params[0];
+      tag = params[1];
+      for (i = 1; i <= 4; i++) {
+        row = fourBook.rows[i];
+        if (!sameAddr(addr, row.minter)) continue;
+        if (!tag || tag === "latest" || tag === "pending") return { result: u256(row.live) };
+        block = parseInt(tag, 16);
+        if (row.block && block <= row.block) return { result: u256(row.shut) };
+        return { result: u256(row.live) };
+      }
+      return null;
+    }
+    if (method !== "eth_call") return null;
+    to = params[0] && params[0].to;
+    data = String((params[0] && params[0].data) || "");
+    if (!isFour(to)) return null;
+    sig = data.slice(0, 10).toLowerCase();
+    word = data.slice(10);
+    if (sig === SEL.nextId) return { result: u256(4) };
+    if (sig === SEL.nonceProbe) return { result: u256(0) };
+    id = parseInt(word.slice(0, 64), 16);
+    row = fourBook.rows[id];
+    if (sig === SEL.balanceOf) {
+      addr = "0x" + word.slice(0, 64).slice(-40);
+      n = 0;
+      for (i = 1; i <= 4; i++) if (sameAddr(fourBook.rows[i].owner, addr)) n += 1;
+      return { result: u256(n) };
+    }
+    if (!row) return { result: u256(0) };
+    if (sig === SEL.datedBlock) return { result: u256(row.block) };
+    if (sig === SEL.datedBy) return { result: u256Addr(row.by) };
+    if (sig === SEL.minter) return { result: u256Addr(row.minter) };
+    if (sig === SEL.listedPrice) return { result: u256(row.price) };
+    if (sig === SEL.titleHolder) return { result: u256Addr(row.title) };
+    if (sig === SEL.ownerOf) return { result: u256Addr(row.owner) };
+    if (sig === SEL.mailboxOf) return { result: u256Addr(row.mail) };
+    return { result: u256(0) };
+  }
+
   function rpc(chain, method, params, i) {
+    var local;
+    if (isFour(hall && hall.contract)) {
+      local = fourRpc(method, params);
+      if (local) {
+        if (typeof local.result !== "string") return Promise.reject(new Error("rpc"));
+        return Promise.resolve(local.result);
+      }
+    }
     var urls = CHAINS[chain];
     if (!i) i = 0;
     if (!urls || i >= urls.length) return Promise.reject(new Error("rpc"));
@@ -471,6 +661,7 @@
 
   /* Anvil can answer the send before latest moves. Wait until that block is visible. */
   function settled(chain, hash, attempt) {
+    if (hash === "local") return Promise.resolve();
     if (!attempt) attempt = 0;
     if (!hash || attempt > 40) return Promise.reject(new Error("receipt"));
     return rpcValue(chain, "eth_getTransactionReceipt", [hash]).then(function (receipt) {
@@ -605,7 +796,7 @@
   }
 
   function otherVerb() {
-    return !listBtn.hidden || !parkBtn.hidden || !returnBtn.hidden;
+    return !listBtn.hidden || !parkBtn.hidden || !returnBtn.hidden || !cancelBtn.hidden || !dateBtn.hidden;
   }
 
   /* Price of the print on the plate. Buy is for a key who is not the title. */
@@ -677,6 +868,10 @@
     parkBtn.hidden = true;
     listBtn.hidden = true;
     returnBtn.hidden = true;
+    cancelBtn.hidden = true;
+    dateBtn.hidden = true;
+    cancelBtn.setAttribute("aria-pressed", "false");
+    dateBtn.setAttribute("aria-pressed", "false");
     buyBtn.hidden = true;
     closeVault();
     closeList();
@@ -691,31 +886,45 @@
 
   /* The verb row keeps its height. Verbs stay hidden until a key is connected.
      List hides when the whisper already shows a price. Park stays while this
-     key titles the plate and still holds it, in any mode.
+     key titles the plate and still holds it, in any mode, including HELD.
      Return when this key holds the print and is not title.
+     Cancel when this key is the seller and LISTED or HELD shows a price.
+     Date when this key may date and the print is not yet dated.
      Naming the vault moves the print. Buy is a listed plate this key does not sell. */
   function paintRole() {
-    var titleHere, returns, showList;
+    var titleHere, seller, returns, showList, showCancel, showDate, vaultSigns;
     parkBtn.hidden = true;
     listBtn.hidden = true;
     returnBtn.hidden = true;
+    cancelBtn.hidden = true;
+    dateBtn.hidden = true;
     if (!plateRole || !walletKey) {
+      cancelBtn.setAttribute("aria-pressed", "false");
+      dateBtn.setAttribute("aria-pressed", "false");
       closeVault();
       closeList();
       closeReturn();
       buyBtn.hidden = true;
       return;
     }
-    titleHere = sameAddr(walletKey, plateRole.title) && sameAddr(plateRole.owner, plateRole.title);
+    seller = sameAddr(walletKey, plateRole.title);
+    titleHere = seller && sameAddr(plateRole.owner, plateRole.title);
     returns = !titleHere && sameAddr(walletKey, plateRole.owner) && !sameAddr(walletKey, plateRole.title);
     showList = titleHere && !priceShown();
+    showCancel = seller && priceShown() && (lit === "listed" || lit === "held");
+    vaultSigns = namedVault(plateRole.mailbox) && sameAddr(walletKey, plateRole.mailbox) && sameAddr(walletKey, plateRole.owner);
+    showDate = !plateRole.dated && (seller || vaultSigns);
     if (!titleHere) closeVault();
     if (!showList) closeList();
     if (!returns) closeReturn();
+    if (!showCancel) cancelBtn.setAttribute("aria-pressed", "false");
+    if (!showDate) dateBtn.setAttribute("aria-pressed", "false");
     listBtn.hidden = !showList;
     parkBtn.hidden = !titleHere;
     returnBtn.hidden = !returns;
-    if (titleHere || returns) buyBtn.hidden = true;
+    cancelBtn.hidden = !showCancel;
+    dateBtn.hidden = !showDate;
+    if (titleHere || returns || showCancel || showDate) buyBtn.hidden = true;
     paintBuy();
   }
 
@@ -737,6 +946,13 @@
     var changed = next.toLowerCase() !== (walletKey || "").toLowerCase();
     walletKey = next;
     StillDoor.write(walletKey);
+    if (changed && isFour(hall && hall.contract)) {
+      fourBind(walletKey);
+      if (index >= 1) {
+        readRole(hall.chain, hall.contract, index, ticket);
+        readAsk(hall.chain, hall.contract, index, ticket);
+      }
+    }
     if (!walletKey) {
       hallProof = null;
       proofState = "";
@@ -784,13 +1000,15 @@
     Promise.all([
       call(chain, contract, SEL.titleHolder, idn),
       call(chain, contract, SEL.ownerOf, idn),
-      call(chain, contract, SEL.mailboxOf, idn)
+      call(chain, contract, SEL.mailboxOf, idn),
+      call(chain, contract, SEL.datedBlock, idn)
     ]).then(function (parts) {
-      var title, owner, box;
+      var title, owner, box, dated;
       if (mineRole !== roleTicket || mine !== ticket || index !== idn) return;
       title = checksum(addressOf(parts[0]));
       owner = checksum(addressOf(parts[1]));
       box = checksum(addressOf(parts[2]));
+      dated = parseInt(parts[3], 16) > 0;
       if (!title || title.replace(/^0x/i, "").length !== 40) return;
       if (!owner || owner.replace(/^0x/i, "").length !== 40) return;
       plateRole = {
@@ -799,7 +1017,8 @@
         id: idn,
         title: title,
         owner: owner,
-        mailbox: box
+        mailbox: box,
+        dated: dated
       };
       paintRole();
     }).catch(function () {
@@ -1041,6 +1260,14 @@
   }
 
   function rpcValue(chain, method, params, i) {
+    var local;
+    if (isFour(hall && hall.contract)) {
+      local = fourRpc(method, params);
+      if (local) {
+        if (local.result == null) return Promise.reject(new Error("rpc"));
+        return Promise.resolve(local.result);
+      }
+    }
     var urls = CHAINS[chain];
     if (!i) i = 0;
     if (!urls || i >= urls.length) return Promise.reject(new Error("rpc"));
@@ -1275,6 +1502,7 @@
     pageStill = !!q.still;
     snow();
     hall = hallFrom(q);
+    if (isFour(hall.contract)) fourBind(StillDoor.read());
     if (!MAINNET_STILL) {
       doorNext = 0;
       doorKnown = true;
@@ -1317,31 +1545,19 @@
     resumeKey();
   }
 
+  /* A stored key stays connected across a new URL. An empty provider list does not clear it. */
   function adoptKey(value) {
     if (!value) {
       if (!walletKey) return;
       disconnectKey();
       return;
     }
-    if (walletKey && walletKey.toLowerCase() === String(value).toLowerCase()) return;
-    if (!window.ethereum) return;
-    window.ethereum.request({ method: "eth_accounts" }).then(function (accounts) {
-      var i;
-      var found = "";
-      if (!accounts) return;
-      for (i = 0; i < accounts.length; i++) {
-        if (String(accounts[i]).toLowerCase() === String(value).toLowerCase()) found = accounts[i];
-      }
-      if (!found) {
-        if (!walletKey) StillDoor.write("");
-        return;
-      }
-      setWallet(found);
-      if (note.textContent === "connect") setNote("");
-      paintDoor();
-      paintRole();
-      readHeld();
-    }).catch(function () {});
+    if (walletKey && sameAddr(walletKey, value)) return;
+    setWallet(value);
+    if (note.textContent === "connect") setNote("");
+    paintDoor();
+    paintRole();
+    readHeld();
   }
 
   function resumeKey() {
@@ -1616,6 +1832,114 @@
 
   heldBtn.addEventListener("click", function () { enterFilter("held"); });
 
+  function onCancel() {
+    var role, from;
+    if (cancelBtn.hidden || !plateRole) return;
+    if (cancelBtn.getAttribute("aria-pressed") === "true") return;
+    if (!window.ethereum && !isFour(plateRole.contract)) {
+      window.location.assign(DOOR);
+      return;
+    }
+    closeVault();
+    closeList();
+    closeReturn();
+    role = {
+      chain: plateRole.chain,
+      contract: plateRole.contract,
+      id: plateRole.id,
+      title: plateRole.title
+    };
+    cancelBtn.setAttribute("aria-pressed", "true");
+    keyFrom(role.contract).then(function (accounts) {
+      from = accounts && accounts[0] ? accounts[0] : "";
+      if (!isFour(role.contract)) {
+        setWallet(from);
+        paintDoor();
+      }
+      if (!from || !sameAddr(from, role.title)) throw new Error("key");
+      return call(role.chain, role.contract, SEL.titleHolder, role.id);
+    }).then(function (hex) {
+      if (!sameAddr(addressOf(hex), from)) throw new Error("title");
+      return castTx(role.chain, {
+        from: from,
+        to: role.contract,
+        data: SEL.cancel + pad(role.id)
+      }).then(function (hash) {
+        return settled(role.chain, hash);
+      });
+    }).then(function () {
+      cancelBtn.setAttribute("aria-pressed", "false");
+      setNote("");
+      if (index === role.id) {
+        readRole(role.chain, role.contract, role.id, ticket);
+        readAsk(role.chain, role.contract, role.id, ticket);
+      }
+    }).catch(function (err) {
+      cancelBtn.setAttribute("aria-pressed", "false");
+      noteWhy(err);
+    });
+  }
+
+  function onDate() {
+    var role, from;
+    if (dateBtn.hidden || !plateRole) return;
+    if (dateBtn.getAttribute("aria-pressed") === "true") return;
+    if (!window.ethereum && !isFour(plateRole.contract)) {
+      window.location.assign(DOOR);
+      return;
+    }
+    closeVault();
+    closeList();
+    closeReturn();
+    role = {
+      chain: plateRole.chain,
+      contract: plateRole.contract,
+      id: plateRole.id,
+      title: plateRole.title
+    };
+    dateBtn.setAttribute("aria-pressed", "true");
+    keyFrom(role.contract).then(function (accounts) {
+      from = accounts && accounts[0] ? accounts[0] : "";
+      if (!isFour(role.contract)) {
+        setWallet(from);
+        paintDoor();
+      }
+      if (!from) throw new Error("key");
+      return Promise.all([
+        call(role.chain, role.contract, SEL.titleHolder, role.id),
+        call(role.chain, role.contract, SEL.ownerOf, role.id),
+        call(role.chain, role.contract, SEL.mailboxOf, role.id),
+        call(role.chain, role.contract, SEL.datedBlock, role.id)
+      ]);
+    }).then(function (parts) {
+      var title = addressOf(parts[0]);
+      var owner = addressOf(parts[1]);
+      var box = addressOf(parts[2]);
+      var dated = parseInt(parts[3], 16) > 0;
+      var titleSigns = sameAddr(from, title);
+      var vaultSigns = namedVault(box) && sameAddr(from, box) && sameAddr(owner, box);
+      if (!titleSigns && !vaultSigns) throw new Error("title");
+      if (dated) throw new Error("dated");
+      return castTx(role.chain, {
+        from: from,
+        to: role.contract,
+        data: SEL.date + pad(role.id)
+      }).then(function (hash) {
+        return settled(role.chain, hash);
+      });
+    }).then(function () {
+      dateBtn.setAttribute("aria-pressed", "false");
+      setNote("");
+      if (index === role.id) readRole(role.chain, role.contract, role.id, ticket);
+    }).catch(function (err) {
+      dateBtn.setAttribute("aria-pressed", "false");
+      noteWhy(err);
+    });
+  }
+
+  cancelBtn.addEventListener("click", onCancel);
+  dateBtn.addEventListener("click", onDate);
+
   parkBtn.addEventListener("click", function () {
     var open;
     if (parkBtn.hidden) return;
@@ -1652,12 +1976,34 @@
     });
   }
 
+  function keyFrom(contract) {
+    if (isFour(contract)) return Promise.resolve([walletKey]);
+    if (!window.ethereum) {
+      window.location.assign(DOOR);
+      return Promise.reject(new Error("wallet"));
+    }
+    return window.ethereum.request({ method: "eth_requestAccounts" });
+  }
+
+  function castTx(chain, tx) {
+    if (isFour(tx.to)) {
+      fourApply(tx);
+      return Promise.resolve("local");
+    }
+    return ensureChain(chain).then(function () {
+      return window.ethereum.request({
+        method: "eth_sendTransaction",
+        params: [tx]
+      });
+    });
+  }
+
   /* Sends the listed wei. There is no field that can go short or over. */
   function onBuy() {
     var ask, from;
     if (!plateAsk || buyBtn.hidden) return;
     if (buyBtn.getAttribute("aria-pressed") === "true") return;
-    if (!window.ethereum) {
+    if (!window.ethereum && !isFour(plateAsk.contract)) {
       window.location.assign(DOOR);
       return;
     }
@@ -1668,7 +2014,7 @@
       title: plateAsk.title
     };
     buyBtn.setAttribute("aria-pressed", "true");
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
+    keyFrom(ask.contract).then(function (accounts) {
       from = accounts && accounts[0] ? accounts[0] : "";
       setWallet(from);
       paintDoor();
@@ -1682,18 +2028,13 @@
         if (!proof) throw why("this key is not in the hall");
         data = encodeBuy(ask.id, proof);
         if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) throw why("this key is not in the hall");
-        return ensureChain(ask.chain).then(function () {
-          return window.ethereum.request({
-            method: "eth_sendTransaction",
-            params: [{
-              from: from,
-              to: ask.contract,
-              value: value,
-              data: data
-            }]
-          }).then(function (hash) {
-            return settled(ask.chain, hash);
-          });
+        return castTx(ask.chain, {
+          from: from,
+          to: ask.contract,
+          value: value,
+          data: data
+        }).then(function (hash) {
+          return settled(ask.chain, hash);
         });
       });
     }).then(function () {
@@ -1717,7 +2058,7 @@
     var role, raw, check, vault, from, mine;
     if (!plateRole || parkBtn.hidden || vaultRow.hidden) return;
     if (confirmBtn.getAttribute("aria-pressed") === "true") return;
-    if (!window.ethereum) {
+    if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
     }
@@ -1742,7 +2083,7 @@
       vault: vault
     };
     confirmBtn.setAttribute("aria-pressed", "true");
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
+    keyFrom(role.contract).then(function (accounts) {
       from = accounts && accounts[0] ? accounts[0] : "";
       setWallet(from);
       paintDoor();
@@ -1757,18 +2098,13 @@
       var owner = addressOf(parts[1]);
       if (mine !== vaultTicket) throw new Error("plate");
       if (!sameAddr(title, role.title) || !sameAddr(owner, role.title) || !sameAddr(from, title)) throw new Error("title");
-      return ensureChain(role.chain).then(function () {
-        if (mine !== vaultTicket) throw new Error("plate");
-        return window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: from,
-            to: role.contract,
-            data: SEL.setMailbox + pad(role.id) + padAddr(role.vault)
-          }]
-        }).then(function (hash) {
-          return settled(role.chain, hash);
-        });
+      if (mine !== vaultTicket) throw new Error("plate");
+      return castTx(role.chain, {
+        from: from,
+        to: role.contract,
+        data: SEL.setMailbox + pad(role.id) + padAddr(role.vault)
+      }).then(function (hash) {
+        return settled(role.chain, hash);
       });
     }).then(function () {
       confirmBtn.setAttribute("aria-pressed", "false");
@@ -1789,7 +2125,7 @@
     var role, raw, word, from, mine;
     if (!plateRole || listBtn.hidden || listRow.hidden) return;
     if (listConfirm.getAttribute("aria-pressed") === "true") return;
-    if (!window.ethereum) {
+    if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
     }
@@ -1804,7 +2140,7 @@
       title: plateRole.title
     };
     listConfirm.setAttribute("aria-pressed", "true");
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
+    keyFrom(role.contract).then(function (accounts) {
       from = accounts && accounts[0] ? accounts[0] : "";
       setWallet(from);
       paintDoor();
@@ -1826,18 +2162,13 @@
       try { price = BigInt(parts[3]); } catch (e) { price = 0n; }
       if (price > 0n) throw why("already listed");
       if (namedVault(box)) throw why("a vault is named");
-      return ensureChain(role.chain).then(function () {
-        if (mine !== listTicket) throw new Error("plate");
-        return window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: from,
-            to: role.contract,
-            data: SEL.list + pad(role.id) + word
-          }]
-        }).then(function (hash) {
-          return settled(role.chain, hash);
-        });
+      if (mine !== listTicket) throw new Error("plate");
+      return castTx(role.chain, {
+        from: from,
+        to: role.contract,
+        data: SEL.list + pad(role.id) + word
+      }).then(function (hash) {
+        return settled(role.chain, hash);
       });
     }).then(function () {
       listConfirm.setAttribute("aria-pressed", "false");
@@ -1858,7 +2189,7 @@
     var role, raw, check, dest, from, mine;
     if (!plateRole || returnBtn.hidden || returnRow.hidden) return;
     if (returnConfirm.getAttribute("aria-pressed") === "true") return;
-    if (!window.ethereum) {
+    if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
     }
@@ -1878,7 +2209,7 @@
       owner: plateRole.owner
     };
     returnConfirm.setAttribute("aria-pressed", "true");
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
+    keyFrom(role.contract).then(function (accounts) {
       from = accounts && accounts[0] ? accounts[0] : "";
       setWallet(from);
       paintDoor();
@@ -1893,18 +2224,13 @@
       var title = addressOf(parts[1]);
       if (mine !== returnTicket) throw new Error("plate");
       if (!sameAddr(owner, from) || !sameAddr(title, role.title) || !sameAddr(dest, title)) throw new Error("title");
-      return ensureChain(role.chain).then(function () {
-        if (mine !== returnTicket) throw new Error("plate");
-        return window.ethereum.request({
-          method: "eth_sendTransaction",
-          params: [{
-            from: from,
-            to: role.contract,
-            data: SEL.transferFrom + padAddr(from) + padAddr(title) + pad(role.id)
-          }]
-        }).then(function (hash) {
-          return settled(role.chain, hash);
-        });
+      if (mine !== returnTicket) throw new Error("plate");
+      return castTx(role.chain, {
+        from: from,
+        to: role.contract,
+        data: SEL.transferFrom + padAddr(from) + padAddr(title) + pad(role.id)
+      }).then(function (hash) {
+        return settled(role.chain, hash);
       });
     }).then(function () {
       returnConfirm.setAttribute("aria-pressed", "false");
@@ -2044,7 +2370,10 @@
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (accounts) {
       if (!walletKey) return;
-      setWallet(accounts && accounts[0] ? accounts[0] : "");
+      if (!accounts || !accounts[0]) return;
+      if (sameAddr(accounts[0], walletKey)) return;
+      setWallet(accounts[0]);
+      if (note.textContent === "connect") setNote("");
       paintDoor();
       paintRole();
       readHeld();
