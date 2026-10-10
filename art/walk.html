@@ -45,10 +45,24 @@
       margin: 0;
       text-align: center;
     }
-    .whisper {
+    .lintel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.85rem;
       margin: 0;
       min-height: 1em;
       padding: 0.05rem 1rem 0.45rem;
+    }
+    .beam {
+      display: flex;
+      justify-content: center;
+      min-width: 9rem;
+    }
+    .whisper {
+      margin: 0;
+      min-height: 1em;
+      padding: 0;
       text-align: center;
       color: var(--dim);
       font-weight: 500;
@@ -139,6 +153,17 @@
       color: var(--ink);
       font-weight: 700;
     }
+    #prev, #next {
+      color: var(--quiet);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      cursor: pointer;
+      padding: 0.4rem 0.45rem;
+    }
+    #prev[aria-disabled="true"], #next[aria-disabled="true"] {
+      cursor: default;
+    }
     .whisper button {
       padding: 0.45rem 0.28rem;
       color: var(--dim);
@@ -201,16 +226,22 @@
 </head>
 <body>
   <p class="name"><a href="mint.html">stillwater</a></p>
-  <p class="whisper" id="whisper" hidden>
-    <button type="button" id="w-id" data-name="print" hidden></button>
-    <span id="w-id-gap" hidden aria-hidden="true"> · </span>
-    <button type="button" id="w-pal" data-name="palette"></button>
-    <span aria-hidden="true"> · </span>
-    <button type="button" id="w-nonce" data-name="nonce"></button>
-    <span aria-hidden="true"> · </span>
-    <button type="button" id="w-water" data-name="% water"></button>
-    <span id="ask" hidden><span aria-hidden="true"> · </span><button type="button" id="w-price" data-name="price"></button></span>
-  </p>
+  <div class="lintel" id="lintel">
+    <button type="button" id="prev" aria-label="Previous" aria-disabled="true">‹</button>
+    <div class="beam">
+    <p class="whisper" id="whisper" hidden>
+      <button type="button" id="w-id" data-name="print" hidden></button>
+      <span id="w-id-gap" hidden aria-hidden="true"> · </span>
+      <button type="button" id="w-pal" data-name="palette"></button>
+      <span aria-hidden="true"> · </span>
+      <button type="button" id="w-nonce" data-name="nonce"></button>
+      <span aria-hidden="true"> · </span>
+      <button type="button" id="w-water" data-name="% water"></button>
+      <span id="ask" hidden><span aria-hidden="true"> · </span><button type="button" id="w-price" data-name="price"></button></span>
+    </p>
+    </div>
+    <button type="button" id="next" aria-label="Next" aria-disabled="true">›</button>
+  </div>
   <div class="court">
     <div class="pool">
       <canvas id="pool" width="128" height="128"></canvas>
@@ -219,13 +250,11 @@
   <div class="threshold">
     <div class="mode" id="mode-bar">
       <div class="words">
-        <button type="button" id="prev" hidden aria-label="Previous">‹</button>
         <button type="button" id="live" aria-pressed="true">LIVE</button>
         <button type="button" id="dated" aria-pressed="false">DATED</button>
         <button type="button" id="search" aria-pressed="false">SEARCH</button>
         <button type="button" id="listed" aria-pressed="false">LISTED</button>
         <button type="button" id="held" aria-pressed="false">HELD</button>
-        <button type="button" id="next" hidden aria-label="Next">›</button>
       </div>
       <button type="button" id="connect" aria-pressed="false">connect</button>
     </div>

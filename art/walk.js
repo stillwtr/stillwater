@@ -87,6 +87,8 @@
   var whisperToken = 0;
   var listedOn = false;
   var heldOn = false;
+  var listedCount = 0;
+  var heldBalance = 0;
   var lit = "live";
   var spareNote = false;
   var walkTicket = 0;
@@ -178,6 +180,7 @@
     setPaint(lit === "dated" ? "dated" : (lit ? "open" : ""));
     paintRole();
     placeRows();
+    arrows();
   }
 
   function closeSearch() {
@@ -749,11 +752,13 @@
 
   function disconnectKey() {
     setWallet("");
+    heldBalance = 0;
     closeVault();
     closeList();
     closeReturn();
     paintDoor();
     paintRole();
+    arrows();
   }
 
   function connectKey() {
@@ -810,6 +815,8 @@
     var chain = hall.chain;
     var contract = hall.contract;
     if (!key || !contract) {
+      heldBalance = 0;
+      arrows();
       hideHeld();
       return;
     }
@@ -819,6 +826,8 @@
       if (!walletKey || !sameAddr(walletKey, key)) return;
       if (!hall.contract || hall.chain !== chain || !sameAddr(hall.contract, contract)) return;
       n = parseInt(hex, 16);
+      heldBalance = inBar() && n >= 0 ? n : 0;
+      arrows();
       if (!(n > 0)) {
         hideHeld();
         return;
@@ -826,6 +835,8 @@
       heldBtn.hidden = false;
     }).catch(function () {
       if (mine !== holdTicket) return;
+      heldBalance = 0;
+      arrows();
       hideHeld();
     });
   }
@@ -898,12 +909,21 @@
     });
   }
 
+  /* The address bar, not the default hall. A bare page has no set. */
+  function inBar() {
+    var q = query();
+    if (!q.contract || !hall || !hall.known || !hall.contract) return false;
+    return String(q.contract).toLowerCase() === String(hall.contract).toLowerCase();
+  }
+
+  /* Quiet until a hall is in the bar, or LISTED / HELD has more than one print. */
   function arrows() {
-    var mainnetOpen = !!(MAINNET_STILL && doorKnown && doorNext >= 1);
-    var show = mainnetOpen && !!(hall && hall.known && hall.contract && hall.nextId >= 1);
-    prevBtn.hidden = !show;
-    nextBtn.hidden = !show;
-    placeRows();
+    var on = false;
+    if (lit === "listed") on = listedCount > 1;
+    else if (lit === "held") on = heldBalance > 1;
+    else if (lit === "live" || lit === "dated") on = inBar();
+    prevBtn.setAttribute("aria-disabled", on ? "false" : "true");
+    nextBtn.setAttribute("aria-disabled", on ? "false" : "true");
   }
 
   function chainOf(name) {
@@ -1437,7 +1457,7 @@
       var ids = [];
       var n;
       var i;
-      if (scan !== walkTicket) return Promise.resolve(0);
+      if (scan !== false && scan !== walkTicket) return Promise.resolve(0);
       if (from < 1 || from > last) return Promise.resolve(0);
       i = from;
       for (n = 0; n < 16; n++) {
@@ -1450,7 +1470,7 @@
         return one(id).catch(function () { return -1; });
       })).then(function (hits) {
         var k;
-        if (scan !== walkTicket) return 0;
+        if (scan !== false && scan !== walkTicket) return 0;
         for (k = 0; k < hits.length; k++) {
           if (hits[k] > 0) return hits[k];
           if (hits[k] < 0) return 0;
@@ -1463,7 +1483,10 @@
 
   function step(dir) {
     var kind, start, scan;
-    if (!hall || !hall.known || !(hall.nextId >= 1)) return;
+    if (prevBtn.getAttribute("aria-disabled") === "true") return;
+    if (!inBar() || !(hall.nextId >= 1)) return;
+    if (lit === "listed" && !(listedCount > 1)) return;
+    if (lit === "held" && !(heldBalance > 1)) return;
     kind = (lit === "listed" || lit === "held" || lit === "dated") ? lit : "";
     if (!(index >= 1 && index <= hall.nextId)) start = dir < 0 ? hall.nextId : 1;
     else {
@@ -1509,8 +1532,9 @@
       enterLive();
       return;
     }
+    if (kind === "listed") listedCount = 0;
     light(kind);
-    if (!hall || !hall.known || !(hall.nextId >= 1)) {
+    if (!inBar() || !(hall.nextId >= 1)) {
       setNote(empty);
       return;
     }
@@ -1520,6 +1544,13 @@
       if (!(id >= 1)) {
         setNote(empty);
         return;
+      }
+      if (kind === "listed") {
+        scanIds("listed", id + 1, 1, false).then(function (second) {
+          if (lit !== "listed") return;
+          listedCount = second >= 1 ? 2 : 1;
+          arrows();
+        });
       }
       openLiveToken(hall.chain, hall.contract, id);
     });
@@ -1537,7 +1568,7 @@
       return;
     }
     light("dated");
-    if (!hall || !hall.known || !(hall.nextId >= 1)) {
+    if (!inBar() || !(hall.nextId >= 1)) {
       disarm();
       setNote(NO_PRINT);
       return;
@@ -1967,6 +1998,7 @@
     field.value = shownKey || EXAMPLE;
     field.focus();
     field.select();
+    arrows();
     placeRows();
   });
 
