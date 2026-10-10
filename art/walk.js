@@ -942,27 +942,12 @@
     if (wait) wait.resolve(proof || null);
   }
 
-  /* Set only by the disconnect control. A new URL does not set it. */
-  var DOOR_OFF = "stillwater-key-off";
-
-  function doorOff(value) {
-    try {
-      if (value) localStorage.setItem(DOOR_OFF, "1");
-      else localStorage.removeItem(DOOR_OFF);
-    } catch (e) {}
-  }
-
-  function doorIsOff() {
-    try { return localStorage.getItem(DOOR_OFF) === "1"; }
-    catch (e) { return false; }
-  }
-
   /* A permitted key, when this page has not been disconnected. An empty list stays put. */
   function pullGranted() {
     var eth = window.ethereum;
-    if (!eth || !eth.request || walletKey || doorIsOff()) return;
+    if (!eth || !eth.request || walletKey || StillDoor.isOff()) return;
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
-      if (walletKey || doorIsOff()) return;
+      if (walletKey || StillDoor.isOff()) return;
       if (!accounts || !accounts[0]) return;
       adoptKey(accounts[0]);
     }).catch(function () {});
@@ -973,7 +958,7 @@
     var changed = next.toLowerCase() !== (walletKey || "").toLowerCase();
     walletKey = next;
     StillDoor.write(walletKey);
-    if (next) doorOff(false);
+    if (next) StillDoor.off(false);
     if (changed && isFour(hall && hall.contract)) {
       fourBind(walletKey);
       if (index >= 1) {
@@ -995,7 +980,7 @@
   }
 
   function disconnectKey() {
-    doorOff(true);
+    StillDoor.off(true);
     setWallet("");
     heldBalance = 0;
     closeVault();
@@ -1604,7 +1589,7 @@
       adoptKey(saved);
       return;
     }
-    if (doorIsOff()) return;
+    if (StillDoor.isOff()) return;
     pullGranted();
   }
 
@@ -1649,15 +1634,18 @@
         return;
       }
       if (msg.id !== proofId || !walletKey) return;
+      if (msg.addr && !sameAddr(msg.addr, walletKey)) return;
       if (msg.miss || !msg.proof) {
+        /* Buy says so if this key has no proof. Loading the page does not. */
+        if (proofState === "have" && hallProof) return;
         hallProof = null;
         proofState = "miss";
-        setNote("this key is not in the hall");
         if (buyWait) settleBuy(null);
         return;
       }
       hallProof = msg.proof;
       proofState = "have";
+      if (note.textContent === "this key is not in the hall") setNote("");
       if (buyWait) {
         if (sameAddr(buyWait.addr, walletKey)) settleBuy(hallProof);
         else settleBuy(null);
@@ -2419,10 +2407,10 @@
     eth.on("accountsChanged", function (accounts) {
       var next = accounts && accounts[0];
       if (!next) {
-        if (!walletKey && !doorIsOff()) pullGranted();
+        if (!walletKey && !StillDoor.isOff()) pullGranted();
         return;
       }
-      if (doorIsOff() && !walletKey) return;
+      if (StillDoor.isOff() && !walletKey) return;
       adoptKey(next);
     });
   }

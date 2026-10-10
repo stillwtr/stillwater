@@ -100,6 +100,8 @@
 
   function showKey(value) {
     key = value || "";
+    StillDoor.write(key);
+    if (key) StillDoor.off(false);
     clearAddress();
     if (!key) {
       connectBtn.textContent = "connect";
@@ -600,8 +602,10 @@
   }
 
   function disconnect() {
+    StillDoor.off(true);
     ticket += 1;
     heldProof = null;
+    pending = null;
     showKey("");
     hidePlate();
     setNote("");
@@ -693,10 +697,10 @@
         return;
       }
       if (!pending || msg.id !== pending.id || pending.ticket !== ticket) return;
+      if (msg.addr && key && msg.addr !== key.toLowerCase()) return;
       if (msg.miss || !msg.proof) {
+        if (heldProof) return;
         heldProof = null;
-        hidePlate();
-        setNote("this key is not in the hall");
         return;
       }
       heldProof = msg.proof;
@@ -709,7 +713,73 @@
     if (document.hidden) pauseCrawls();
     else wakeCrawls();
   });
+
+  /* The Walk and this page share one key. An empty account list does not clear it. */
+  function adopt(value) {
+    if (!value) {
+      if (!key) return;
+      ticket += 1;
+      heldProof = null;
+      pending = null;
+      showKey("");
+      hidePlate();
+      setNote("");
+      return;
+    }
+    if (key && key.toLowerCase() === String(value).toLowerCase()) {
+      connectBtn.textContent = "disconnect";
+      connectBtn.setAttribute("aria-pressed", "true");
+      return;
+    }
+    setNote("");
+    showKey(value);
+    startHall();
+    if (key) applyKey();
+  }
+
+  function pullGranted() {
+    var eth = window.ethereum;
+    if (!eth || !eth.request || key || StillDoor.isOff()) return;
+    eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      if (key || StillDoor.isOff()) return;
+      if (!accounts || !accounts[0]) return;
+      adopt(accounts[0]);
+    }).catch(function () {});
+  }
+
+  function resume() {
+    var saved = StillDoor.read();
+    if (saved) {
+      adopt(saved);
+      return;
+    }
+    if (StillDoor.isOff()) return;
+    pullGranted();
+  }
+
+  function watchKey() {
+    var eth = window.ethereum;
+    if (!eth || !eth.on) return;
+    eth.on("accountsChanged", function (accounts) {
+      var next = accounts && accounts[0];
+      if (!next) return;
+      if (StillDoor.isOff() && !key) return;
+      adopt(next);
+    });
+  }
+
+  window.addEventListener("storage", function (ev) {
+    if (!ev || ev.key !== StillDoor.name) return;
+    adopt(ev.newValue || "");
+  });
+
+  window.addEventListener("pageshow", function () {
+    resume();
+  });
+
   buildGrid();
   showGrid();
   readLeft();
+  resume();
+  watchKey();
 })();

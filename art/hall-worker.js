@@ -86,6 +86,17 @@ function proofAt(index) {
 }
 
 var started = false;
+var queued = null;
+
+function reply(data) {
+  var addr = String((data && data.addr) || "").toLowerCase();
+  var index;
+  if (!data || data.id == null) return;
+  if (!/^0x[0-9a-f]{40}$/.test(addr)) return;
+  index = findIndex(addr);
+  if (index < 0) postMessage({ id: data.id, addr: addr, miss: true });
+  else postMessage({ id: data.id, addr: addr, proof: proofAt(index) });
+}
 
 function begin() {
   if (started) return;
@@ -96,6 +107,11 @@ function begin() {
   }).then(function (text) {
     build(text);
     postMessage({ ready: true });
+    if (queued) {
+      var job = queued;
+      queued = null;
+      reply(job);
+    }
   }).catch(function (err) {
     postMessage({ ready: false, match: !!(err && err.message === "root") });
   });
@@ -103,15 +119,14 @@ function begin() {
 
 onmessage = function (ev) {
   var data = ev.data || {};
-  var addr;
-  var index;
   if (data.start) {
     begin();
     return;
   }
-  if (!layers.length) return;
-  addr = String(data.addr || "").toLowerCase();
-  index = findIndex(addr);
-  if (index < 0) postMessage({ id: data.id, miss: true });
-  else postMessage({ id: data.id, proof: proofAt(index) });
+  /* The list is still loading. Hold the key. Do not call it a miss. */
+  if (!layers.length) {
+    queued = data;
+    return;
+  }
+  reply(data);
 };
