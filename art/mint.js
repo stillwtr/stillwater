@@ -638,16 +638,18 @@
       setNote("the door is not open");
       return;
     }
+    var sent = {
+      from: key,
+      to: STILL,
+      data: encodeMint(heldProof),
+      chainId: "0x1",
+      value: PRICE
+    };
     mintBtn.setAttribute("aria-pressed", "true");
     ensureMainnet().then(function () {
       return window.ethereum.request({
         method: "eth_sendTransaction",
-        params: [{
-          from: key,
-          to: STILL,
-          value: PRICE,
-          data: encodeMint(heldProof)
-        }]
+        params: [sent]
       });
     }).then(function () {
       mintBtn.setAttribute("aria-pressed", "false");
