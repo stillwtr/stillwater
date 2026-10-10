@@ -419,7 +419,35 @@
     return true;
   }
 
+  function emptyHall() {
+    index = 0;
+    searchKey = "";
+    snow();
+    clearLintel();
+    press("open");
+    setNote("there is no print");
+    writeUrl({ chain: hall.chain, contract: hall.contract });
+  }
+
+  function settleHall(q) {
+    if (!hall.contract || q.id) return;
+    if (!(hall.nextId >= 1)) {
+      emptyHall();
+      return;
+    }
+    openLiveToken(hall.chain, hall.contract, 1);
+  }
+
   function openKey(raw, chain, paceBytes, postcard) {
+    if (hall && hall.contract && String(raw || "").toLowerCase() === EXAMPLE.toLowerCase()) {
+      if (!hall.known) return;
+      if (hall.nextId >= 1) {
+        openLiveToken(hall.chain, hall.contract, index >= 1 ? index : 1);
+        return;
+      }
+      emptyHall();
+      return;
+    }
     var id = ++ticket;
     var check = Plate.checksumState(raw);
     var bytes;
@@ -438,7 +466,14 @@
       searchKey = checksum(raw);
       press("open");
       show(bytes, nonce, raw, paceBytes || bytes);
-      if (postcard !== false) writeUrl({ chain: chain, mode: "live", key: checksum(raw) });
+      if (postcard !== false) {
+        writeUrl({
+          chain: hall.contract ? hall.chain : chain,
+          contract: hall.contract,
+          mode: "live",
+          key: checksum(raw)
+        });
+      } else if (hall.contract) writeUrl({ chain: hall.chain, contract: hall.contract });
       else writeUrl({});
     }).catch(function () {
       if (id !== ticket) return;
@@ -525,6 +560,7 @@
       else openDated(chain, contract, q.id);
       return;
     }
+    if (contract && !key) return;
     if (key) openKey(key, chain || "mainnet", null, true);
     else openKey(EXAMPLE, "mainnet", null, false);
   }
@@ -557,10 +593,15 @@
         hall.known = true;
         rememberDoor(hall.chain, hall.contract, hall.nextId);
         arrows();
+        settleHall(q);
       }).catch(function () {
         hall.nextId = 0;
         hall.known = true;
         arrows();
+        if (hall.contract && !q.id) {
+          writeUrl({ chain: hall.chain, contract: hall.contract });
+          weather("open");
+        }
       });
     }
     route(q);
