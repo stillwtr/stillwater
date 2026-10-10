@@ -603,12 +603,14 @@
         if (row.block && block <= row.block) return { result: u256(row.shut) };
         return { result: u256(row.live) };
       }
-      return null;
+      /* A signer who is not a minter still has a page nonce. Do not ask a node. */
+      return { result: u256(1) };
     }
-    if (method !== "eth_call") return null;
+    if (method === "eth_chainId") return { result: "0xaa36a7" };
+    if (method !== "eth_call") return { result: "0x0" };
     to = params[0] && params[0].to;
     data = String((params[0] && params[0].data) || "");
-    if (!isFour(to)) return null;
+    if (!isFour(to)) return { result: u256(0) };
     sig = data.slice(0, 10).toLowerCase();
     word = data.slice(10);
     if (sig === SEL.nextId) return { result: u256(4) };
@@ -636,10 +638,8 @@
     var local;
     if (isFour(hall && hall.contract)) {
       local = fourRpc(method, params);
-      if (local) {
-        if (typeof local.result !== "string") return Promise.reject(new Error("rpc"));
-        return Promise.resolve(local.result);
-      }
+      if (local && typeof local.result === "string") return Promise.resolve(local.result);
+      return Promise.reject(new Error("rpc"));
     }
     var urls = CHAINS[chain];
     if (!i) i = 0;
@@ -885,11 +885,12 @@
   }
 
   /* The verb row keeps its height. Verbs stay hidden until a key is connected.
+     LIVE, DATED, LISTED, and HELD only choose which prints the arrows walk.
+     They do not hide an action this key may take on the plate.
      List hides when the whisper already shows a price. Park stays while this
-     key titles the plate and still holds it, in any mode, including HELD.
-     Return when this key holds the print and is not title.
-     Cancel when this key is the seller and LISTED or HELD shows a price.
-     Date when this key may date and the print is not yet dated.
+     key titles the plate and still holds it. Return when this key holds the
+     print and is not title. Cancel when this key is the seller and a price
+     is showing. Date when this key may date and the print is not yet dated.
      Naming the vault moves the print. Buy is a listed plate this key does not sell. */
   function paintRole() {
     var titleHere, seller, returns, showList, showCancel, showDate, vaultSigns;
@@ -911,7 +912,7 @@
     titleHere = seller && sameAddr(plateRole.owner, plateRole.title);
     returns = !titleHere && sameAddr(walletKey, plateRole.owner) && !sameAddr(walletKey, plateRole.title);
     showList = titleHere && !priceShown();
-    showCancel = seller && priceShown() && (lit === "listed" || lit === "held");
+    showCancel = seller && priceShown();
     vaultSigns = namedVault(plateRole.mailbox) && sameAddr(walletKey, plateRole.mailbox) && sameAddr(walletKey, plateRole.owner);
     showDate = !plateRole.dated && (seller || vaultSigns);
     if (!titleHere) closeVault();
@@ -941,11 +942,38 @@
     if (wait) wait.resolve(proof || null);
   }
 
+  /* Set only by the disconnect control. A new URL does not set it. */
+  var DOOR_OFF = "stillwater-key-off";
+
+  function doorOff(value) {
+    try {
+      if (value) localStorage.setItem(DOOR_OFF, "1");
+      else localStorage.removeItem(DOOR_OFF);
+    } catch (e) {}
+  }
+
+  function doorIsOff() {
+    try { return localStorage.getItem(DOOR_OFF) === "1"; }
+    catch (e) { return false; }
+  }
+
+  /* A permitted key, when this page has not been disconnected. An empty list stays put. */
+  function pullGranted() {
+    var eth = window.ethereum;
+    if (!eth || !eth.request || walletKey || doorIsOff()) return;
+    eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      if (walletKey || doorIsOff()) return;
+      if (!accounts || !accounts[0]) return;
+      adoptKey(accounts[0]);
+    }).catch(function () {});
+  }
+
   function setWallet(value) {
     var next = value || "";
     var changed = next.toLowerCase() !== (walletKey || "").toLowerCase();
     walletKey = next;
     StillDoor.write(walletKey);
+    if (next) doorOff(false);
     if (changed && isFour(hall && hall.contract)) {
       fourBind(walletKey);
       if (index >= 1) {
@@ -963,10 +991,11 @@
     hallProof = null;
     proofState = "";
     settleBuy(null);
-    startHall();
+    try { startHall(); } catch (e) { hallReady = true; }
   }
 
   function disconnectKey() {
+    doorOff(true);
     setWallet("");
     heldBalance = 0;
     closeVault();
@@ -1263,10 +1292,8 @@
     var local;
     if (isFour(hall && hall.contract)) {
       local = fourRpc(method, params);
-      if (local) {
-        if (local.result == null) return Promise.reject(new Error("rpc"));
-        return Promise.resolve(local.result);
-      }
+      if (local && local.result != null) return Promise.resolve(local.result);
+      return Promise.reject(new Error("rpc"));
     }
     var urls = CHAINS[chain];
     if (!i) i = 0;
@@ -1499,11 +1526,12 @@
 
   function boot() {
     var q = query();
+    resumeKey();
     pageStill = !!q.still;
     snow();
     hall = hallFrom(q);
     if (isFour(hall.contract)) fourBind(StillDoor.read());
-    if (!MAINNET_STILL) {
+    if (!MAINNET_STILL || isFour(hall.contract)) {
       doorNext = 0;
       doorKnown = true;
     } else if (!(hall.contract && hall.chain === "mainnet" && hall.contract.toLowerCase() === MAINNET_STILL.toLowerCase())) {
@@ -1549,10 +1577,20 @@
   function adoptKey(value) {
     if (!value) {
       if (!walletKey) return;
-      disconnectKey();
+      setWallet("");
+      heldBalance = 0;
+      closeVault();
+      closeList();
+      closeReturn();
+      paintDoor();
+      paintRole();
+      arrows();
       return;
     }
-    if (walletKey && sameAddr(walletKey, value)) return;
+    if (walletKey && sameAddr(walletKey, value)) {
+      paintDoor();
+      return;
+    }
     setWallet(value);
     if (note.textContent === "connect") setNote("");
     paintDoor();
@@ -1561,12 +1599,22 @@
   }
 
   function resumeKey() {
-    adoptKey(StillDoor.read());
+    var saved = StillDoor.read();
+    if (saved) {
+      adoptKey(saved);
+      return;
+    }
+    if (doorIsOff()) return;
+    pullGranted();
   }
 
   window.addEventListener("storage", function (ev) {
     if (!ev || ev.key !== StillDoor.name) return;
     adoptKey(ev.newValue || "");
+  });
+
+  window.addEventListener("pageshow", function () {
+    resumeKey();
   });
 
   function askProof(addr) {
@@ -2369,14 +2417,13 @@
     var eth = window.ethereum;
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (accounts) {
-      if (!walletKey) return;
-      if (!accounts || !accounts[0]) return;
-      if (sameAddr(accounts[0], walletKey)) return;
-      setWallet(accounts[0]);
-      if (note.textContent === "connect") setNote("");
-      paintDoor();
-      paintRole();
-      readHeld();
+      var next = accounts && accounts[0];
+      if (!next) {
+        if (!walletKey && !doorIsOff()) pullGranted();
+        return;
+      }
+      if (doorIsOff() && !walletKey) return;
+      adoptKey(next);
     });
   }
 
@@ -2387,6 +2434,6 @@
 
   window.addEventListener("resize", fit);
   fit();
-  watchKey();
   boot();
+  watchKey();
 })();
