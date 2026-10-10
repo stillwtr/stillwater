@@ -1,8 +1,23 @@
 (function () {
   var CHAINS = {
-    mainnet: ["https://ethereum.publicnode.com", "https://eth.drpc.org"],
-    sepolia: ["https://ethereum-sepolia-rpc.publicnode.com", "https://rpc.sepolia.org"]
+    mainnet: [
+      "https://ethereum.publicnode.com",
+      "https://eth.drpc.org",
+      "https://1rpc.io/eth",
+      "https://rpc.mevblocker.io",
+      "https://gateway.tenderly.co/public/mainnet",
+      "https://eth.api.pocket.network"
+    ],
+    sepolia: [
+      "https://ethereum-sepolia-rpc.publicnode.com",
+      "https://sepolia.drpc.org",
+      "https://rpc.sepolia.ethpandaops.io",
+      "https://1rpc.io/sepolia",
+      "https://ethereum-sepolia.publicnode.com"
+    ]
   };
+  /* A host that stays quiet this long is a failed host. The next one is asked. */
+  var READ_MS = 8000;
   var SEL = {
     nextId: "0x61b8ce8c",
     datedBlock: "0x418ab103",
@@ -635,29 +650,59 @@
     return { result: u256(0) };
   }
 
-  function rpc(chain, method, params, i) {
-    var local;
-    if (isFour(hall && hall.contract)) {
-      local = fourRpc(method, params);
-      if (local && typeof local.result === "string") return Promise.resolve(local.result);
-      return Promise.reject(new Error("rpc"));
+  function postJson(url, body) {
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = 0;
+    if (ctrl) {
+      timer = setTimeout(function () {
+        try { ctrl.abort(); } catch (e) {}
+      }, READ_MS);
     }
-    var urls = CHAINS[chain];
-    if (!i) i = 0;
-    if (!urls || i >= urls.length) return Promise.reject(new Error("rpc"));
-    return fetch(urls[i], {
+    return fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
+      body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined
     }).then(function (res) {
+      if (timer) clearTimeout(timer);
+      timer = 0;
       if (!res.ok) throw new Error("http");
       return res.json();
-    }).then(function (body) {
-      if (!body || typeof body.result !== "string" || body.error) throw new Error("result");
-      return body.result;
-    }).catch(function () {
-      return rpc(chain, method, params, i + 1);
+    }).catch(function (err) {
+      if (timer) clearTimeout(timer);
+      throw err;
     });
+  }
+
+  /* One read. Hosts are tried in order. A failure or a quiet host tries the next. */
+  function ask(chain, method, params, i, loose) {
+    var local;
+    var urls;
+    if (isFour(hall && hall.contract)) {
+      local = fourRpc(method, params);
+      if (!local || local.result == null) return Promise.reject(new Error("rpc"));
+      if (!loose && typeof local.result !== "string") return Promise.reject(new Error("rpc"));
+      return Promise.resolve(local.result);
+    }
+    urls = CHAINS[chain];
+    if (!i) i = 0;
+    if (!urls || i >= urls.length) return Promise.reject(new Error("rpc"));
+    return postJson(urls[i], {
+      jsonrpc: "2.0",
+      id: 1,
+      method: method,
+      params: params
+    }).then(function (msg) {
+      if (!msg || msg.error || msg.result == null) throw new Error("result");
+      if (!loose && typeof msg.result !== "string") throw new Error("result");
+      return msg.result;
+    }).catch(function () {
+      return ask(chain, method, params, i + 1, loose);
+    });
+  }
+
+  function rpc(chain, method, params) {
+    return ask(chain, method, params, 0, false);
   }
 
   /* Anvil can answer the send before latest moves. Wait until that block is visible. */
@@ -1274,29 +1319,8 @@
     return "0x" + n.toString(16);
   }
 
-  function rpcValue(chain, method, params, i) {
-    var local;
-    if (isFour(hall && hall.contract)) {
-      local = fourRpc(method, params);
-      if (local && local.result != null) return Promise.resolve(local.result);
-      return Promise.reject(new Error("rpc"));
-    }
-    var urls = CHAINS[chain];
-    if (!i) i = 0;
-    if (!urls || i >= urls.length) return Promise.reject(new Error("rpc"));
-    return fetch(urls[i], {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
-    }).then(function (res) {
-      if (!res.ok) throw new Error("http");
-      return res.json();
-    }).then(function (body) {
-      if (!body || body.error || body.result == null) throw new Error("result");
-      return body.result;
-    }).catch(function () {
-      return rpcValue(chain, method, params, i + 1);
-    });
+  function rpcValue(chain, method, params) {
+    return ask(chain, method, params, 0, true);
   }
 
   /* The block where this key's nonce reached its latest count, then the quiet since that block. */
@@ -2039,38 +2063,38 @@
   }
 
   function readNode(url, params) {
-    return fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: params })
-    }).then(function (res) {
-      if (!res.ok) throw new Error("http");
-      return res.json();
-    }).then(function (body) {
-      if (!body || typeof body.result !== "string" || body.error) throw new Error("result");
-      return body.result;
+    return postJson(url, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_call",
+      params: params
+    }).then(function (msg) {
+      if (!msg || typeof msg.result !== "string" || msg.error) throw new Error("result");
+      return msg.result;
     });
   }
 
-  /* Both nodes must answer the same listed wei. A miss does not fall through. */
+  /* A failed host is skipped. The walk stops when two hosts name one price. */
   function listedPair(chain, contract, id) {
     var urls = CHAINS[chain];
     var params = [{ to: contract, data: SEL.listedPrice + pad(id) }, "latest"];
-    if (!urls || urls.length < 2) return Promise.reject(why(WEATHER));
-    return Promise.all([readNode(urls[0], params), readNode(urls[1], params)]).then(function (parts) {
-      var a, b;
-      try {
-        a = BigInt(parts[0]);
-        b = BigInt(parts[1]);
-      } catch (e) {
-        throw why(WEATHER);
-      }
-      if (a !== b) throw why(WEATHER);
-      return parts[0];
-    }).catch(function (err) {
-      if (err && err.why) throw err;
-      throw why(WEATHER);
-    });
+    var seen = [];
+    function step(i) {
+      if (!urls || i >= urls.length) return Promise.reject(why(WEATHER));
+      return readNode(urls[i], params).then(function (hex) {
+        var n, j;
+        try { n = BigInt(hex); } catch (e) { return step(i + 1); }
+        for (j = 0; j < seen.length; j++) {
+          if (seen[j].n === n) return Promise.resolve(seen[j].hex);
+        }
+        seen.push({ n: n, hex: hex });
+        return step(i + 1);
+      }).catch(function (err) {
+        if (err && err.why) throw err;
+        return step(i + 1);
+      });
+    }
+    return step(0);
   }
 
   function castTx(chain, tx) {
@@ -2095,7 +2119,7 @@
     });
   }
 
-  /* A chain buy sends the wei both nodes named. There is no field that can go short or over. */
+  /* A chain buy sends the wei two hosts named. There is no field that can go short or over. */
   function onBuy() {
     var ask, from, value, priced;
     if (!plateAsk || buyBtn.hidden) return;
