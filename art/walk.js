@@ -32,6 +32,7 @@
   var NO_HELD = "there is no held print";
   var WEATHER = "the chain did not answer";
   var UNREAD = "the last transaction could not be read";
+  var HALL_SHUT = "the hall is not open";
 
   var canvas = document.getElementById("pool");
   var note = document.getElementById("note");
@@ -1872,6 +1873,7 @@
     var role, from;
     if (cancelBtn.hidden || !plateRole) return;
     if (cancelBtn.getAttribute("aria-pressed") === "true") return;
+    if (shutHall(plateRole.chain, plateRole.contract)) return;
     if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
@@ -1920,6 +1922,7 @@
     var role, from;
     if (dateBtn.hidden || !plateRole) return;
     if (dateBtn.getAttribute("aria-pressed") === "true") return;
+    if (shutHall(plateRole.chain, plateRole.contract)) return;
     if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
@@ -2012,6 +2015,20 @@
     });
   }
 
+  /* Sepolia, mainnet, or the page-drawn hall. Any other contract stays a viewer. */
+  function writeOpen(chain, contract) {
+    if (isFour(contract)) return true;
+    if (chain === "sepolia" && sameAddr(contract, SEPOLIA)) return true;
+    if (chain === "mainnet" && sameAddr(contract, MAINNET_STILL)) return true;
+    return false;
+  }
+
+  function shutHall(chain, contract) {
+    if (writeOpen(chain, contract)) return false;
+    setNote(HALL_SHUT);
+    return true;
+  }
+
   function keyFrom(contract) {
     if (isFour(contract)) return Promise.resolve([walletKey]);
     if (!window.ethereum) {
@@ -2021,56 +2038,104 @@
     return window.ethereum.request({ method: "eth_requestAccounts" });
   }
 
+  function readNode(url, params) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: params })
+    }).then(function (res) {
+      if (!res.ok) throw new Error("http");
+      return res.json();
+    }).then(function (body) {
+      if (!body || typeof body.result !== "string" || body.error) throw new Error("result");
+      return body.result;
+    });
+  }
+
+  /* Both nodes must answer the same listed wei. A miss does not fall through. */
+  function listedPair(chain, contract, id) {
+    var urls = CHAINS[chain];
+    var params = [{ to: contract, data: SEL.listedPrice + pad(id) }, "latest"];
+    if (!urls || urls.length < 2) return Promise.reject(why(WEATHER));
+    return Promise.all([readNode(urls[0], params), readNode(urls[1], params)]).then(function (parts) {
+      var a, b;
+      try {
+        a = BigInt(parts[0]);
+        b = BigInt(parts[1]);
+      } catch (e) {
+        throw why(WEATHER);
+      }
+      if (a !== b) throw why(WEATHER);
+      return parts[0];
+    }).catch(function (err) {
+      if (err && err.why) throw err;
+      throw why(WEATHER);
+    });
+  }
+
   function castTx(chain, tx) {
+    var sent;
     if (isFour(tx.to)) {
       fourApply(tx);
       return Promise.resolve("local");
     }
+    if (!writeOpen(chain, tx.to)) return Promise.reject(why(HALL_SHUT));
+    sent = {
+      from: tx.from,
+      to: tx.to,
+      data: tx.data,
+      chainId: CHAIN_ID[chain]
+    };
+    if (tx.value) sent.value = tx.value;
     return ensureChain(chain).then(function () {
       return window.ethereum.request({
         method: "eth_sendTransaction",
-        params: [tx]
+        params: [sent]
       });
     });
   }
 
-  /* Sends the listed wei. There is no field that can go short or over. */
+  /* A chain buy sends the wei both nodes named. There is no field that can go short or over. */
   function onBuy() {
-    var ask, from;
+    var ask, from, value, priced;
     if (!plateAsk || buyBtn.hidden) return;
     if (buyBtn.getAttribute("aria-pressed") === "true") return;
-    if (!window.ethereum && !isFour(plateAsk.contract)) {
-      window.location.assign(DOOR);
-      return;
-    }
     ask = {
       chain: plateAsk.chain,
       contract: plateAsk.contract,
       id: plateAsk.id,
       title: plateAsk.title
     };
+    if (shutHall(ask.chain, ask.contract)) return;
     buyBtn.setAttribute("aria-pressed", "true");
-    keyFrom(ask.contract).then(function (accounts) {
-      from = accounts && accounts[0] ? accounts[0] : "";
-      setWallet(from);
-      paintDoor();
-      if (!from || (ask.title && sameAddr(from, ask.title))) throw new Error("key");
-      return call(ask.chain, ask.contract, SEL.listedPrice, ask.id);
-    }).then(function (hex) {
-      var value = priceHex(hex);
-      var data;
+    priced = isFour(ask.contract)
+      ? call(ask.chain, ask.contract, SEL.listedPrice, ask.id)
+      : listedPair(ask.chain, ask.contract, ask.id);
+    priced.then(function (hex) {
+      value = priceHex(hex);
       if (!value) throw new Error("price");
-      return takeProof(from).then(function (proof) {
-        if (!proof) throw why("this key is not in the hall");
-        data = encodeBuy(ask.id, proof);
-        if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) throw why("this key is not in the hall");
-        return castTx(ask.chain, {
-          from: from,
-          to: ask.contract,
-          value: value,
-          data: data
-        }).then(function (hash) {
-          return settled(ask.chain, hash);
+      if (!isFour(ask.contract) && !window.ethereum) {
+        window.location.assign(DOOR);
+        throw new Error("wallet");
+      }
+      return keyFrom(ask.contract).then(function (accounts) {
+        from = accounts && accounts[0] ? accounts[0] : "";
+        setWallet(from);
+        paintDoor();
+        if (!from || (ask.title && sameAddr(from, ask.title))) throw new Error("key");
+        return takeProof(from).then(function (proof) {
+          var data;
+          if (!proof) throw why("this key is not in the hall");
+          data = encodeBuy(ask.id, proof);
+          if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) throw why("this key is not in the hall");
+          return castTx(ask.chain, {
+            from: from,
+            to: ask.contract,
+            value: value,
+            data: data
+          }).then(function (hash) {
+            return settled(ask.chain, hash);
+          });
         });
       });
     }).then(function () {
@@ -2094,6 +2159,7 @@
     var role, raw, check, vault, from, mine;
     if (!plateRole || parkBtn.hidden || vaultRow.hidden) return;
     if (confirmBtn.getAttribute("aria-pressed") === "true") return;
+    if (shutHall(plateRole.chain, plateRole.contract)) return;
     if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
@@ -2161,6 +2227,7 @@
     var role, raw, word, from, mine;
     if (!plateRole || listBtn.hidden || listRow.hidden) return;
     if (listConfirm.getAttribute("aria-pressed") === "true") return;
+    if (shutHall(plateRole.chain, plateRole.contract)) return;
     if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
@@ -2225,6 +2292,7 @@
     var role, raw, check, dest, from, mine;
     if (!plateRole || returnBtn.hidden || returnRow.hidden) return;
     if (returnConfirm.getAttribute("aria-pressed") === "true") return;
+    if (shutHall(plateRole.chain, plateRole.contract)) return;
     if (!window.ethereum && !isFour(plateRole.contract)) {
       window.location.assign(DOOR);
       return;
