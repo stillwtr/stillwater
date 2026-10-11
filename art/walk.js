@@ -115,6 +115,7 @@
   var heldBalance = 0;
   var lit = "live";
   var spareNote = false;
+  var tuckedLine = "";
   var walkTicket = 0;
   var buyTicket = 0;
   var askGen = 0;
@@ -216,6 +217,7 @@
     listedBtn.setAttribute("aria-pressed", lit === "listed" ? "true" : "false");
     heldBtn.setAttribute("aria-pressed", lit === "held" ? "true" : "false");
     searchBtn.setAttribute("aria-pressed", "false");
+    if (which !== "listed") tuckedLine = "";
     setPaint(lit === "dated" ? "dated" : (lit ? "open" : ""));
     paintRole();
     placeRows();
@@ -225,6 +227,42 @@
   function closeSearch() {
     field.hidden = true;
     searchBtn.setAttribute("aria-pressed", "false");
+  }
+
+  function actionFieldOpen() {
+    return !field.hidden || !listRow.hidden || !vaultRow.hidden;
+  }
+
+  function listedYields(text) {
+    return text === "bad price" || text === "bad address"
+      || text.indexOf("a wrong vault is permanent") !== -1;
+  }
+
+  /* The empty-listed line stays down while SEARCH, list, or park is open. */
+  function tuckListedLine() {
+    if (note.textContent !== NO_LISTED) return;
+    tuckedLine = NO_LISTED;
+    setNote("");
+  }
+
+  function restoreTuckedLine() {
+    var text;
+    if (actionFieldOpen()) return;
+    if (tuckedLine !== NO_LISTED || lit !== "listed") {
+      if (lit !== "listed") tuckedLine = "";
+      return;
+    }
+    text = note.textContent;
+    if (text && text !== NO_LISTED && !listedYields(text)) {
+      tuckedLine = "";
+      return;
+    }
+    setNote(NO_LISTED);
+  }
+
+  function hideSearch() {
+    closeSearch();
+    if (lit === "search") mark("live");
   }
 
   function actionNote() {
@@ -461,6 +499,15 @@
   }
 
   function setNote(text) {
+    if (text === NO_LISTED && actionFieldOpen()) {
+      tuckedLine = NO_LISTED;
+      if (note.textContent !== NO_LISTED) return;
+      text = "";
+    } else if (text === NO_LISTED) {
+      tuckedLine = "";
+    } else if (text && !listedYields(text)) {
+      tuckedLine = "";
+    }
     note.classList.remove("fade");
     note.textContent = text;
     if (text === WEATHER) note.title = "nonce read failed";
@@ -902,19 +949,23 @@
     });
   }
 
-  function closeVault() {
+  function closeVault(keepLine) {
+    var wasOpen = !vaultRow.hidden;
     vaultTicket += 1;
     vaultSure = "";
     parkBtn.setAttribute("aria-pressed", "false");
     vaultRow.hidden = true;
     vaultField.value = "";
+    if (wasOpen && !keepLine) restoreTuckedLine();
   }
 
-  function closeList() {
+  function closeList(keepLine) {
+    var wasOpen = !listRow.hidden;
     listTicket += 1;
     listBtn.setAttribute("aria-pressed", "false");
     listRow.hidden = true;
     listPrice.value = "";
+    if (wasOpen && !keepLine) restoreTuckedLine();
   }
 
   function closeReturn() {
@@ -1033,6 +1084,7 @@
   function clearStaleNote() {
     var text = note.textContent;
     if (text === NO_HELD || text === NO_LISTED || text === "mailbox named") setNote("");
+    if (tuckedLine === NO_HELD || tuckedLine === NO_LISTED || tuckedLine === "mailbox named") tuckedLine = "";
   }
 
   function setWallet(value) {
@@ -2094,8 +2146,10 @@
       closeVault();
       return;
     }
-    closeList();
+    closeList(true);
     closeReturn();
+    hideSearch();
+    tuckListedLine();
     parkBtn.setAttribute("aria-pressed", "true");
     vaultRow.hidden = false;
     vaultField.value = "";
@@ -2515,8 +2569,10 @@
       closeList();
       return;
     }
-    closeVault();
+    closeVault(true);
     closeReturn();
+    hideSearch();
+    tuckListedLine();
     listBtn.setAttribute("aria-pressed", "true");
     listRow.hidden = false;
     listPrice.value = "";
@@ -2542,10 +2598,13 @@
     if (!field.hidden) {
       closeSearch();
       if (lit === "search") mark("live");
+      restoreTuckedLine();
       return;
     }
+    closeList(true);
+    closeVault(true);
+    tuckListedLine();
     walkTicket += 1;
-    setNote("");
     lit = "search";
     listedOn = false;
     heldOn = false;
