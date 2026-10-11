@@ -14,7 +14,7 @@
       --quiet: #74808C;
       --plate: #E4E7EC;
     }
-    html, body { margin: 0; min-height: 100%; }
+    html, body { margin: 0; height: 100%; }
     body {
       background: var(--floor);
       color: var(--ink);
@@ -26,15 +26,17 @@
       display: flex;
       flex-direction: column;
       min-height: 100%;
+      height: 100%;
     }
     .name {
       margin: 0;
-      padding: 0.85rem 1rem 0.15rem;
+      padding: 0.85rem 1rem;
       text-align: center;
+      font-size: 0.65rem;
     }
     .name a {
       color: var(--ink);
-      font-size: 0.65rem;
+      font-size: inherit;
       font-weight: 500;
       letter-spacing: 0.24em;
       text-decoration: none;
@@ -47,7 +49,7 @@
     }
     .lintel { padding: 0.05rem 1rem 0.45rem; }
     .whisper {
-      margin: 0.35rem 0 0;
+      margin: 0.4rem 0 0;
       min-height: 1em;
       text-align: center;
       color: var(--dim);
@@ -63,15 +65,16 @@
     }
     .whisper button.fade { opacity: 0; }
     .court {
-      flex: 1 0 auto;
+      flex: 0 0 auto;
       width: 100%;
+      min-height: 0;
       background: var(--floor);
       display: flex;
-      align-items: safe center;
-      justify-content: safe center;
-      overflow: visible;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
     }
-    .nine {
+    .nine:not([hidden]) {
       display: grid;
       grid-template-columns: repeat(3, max-content);
       gap: 0.55rem;
@@ -94,7 +97,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.55rem;
-      padding: 0.8rem 1rem 0.25rem;
+      padding: 0.4rem 1rem 0.25rem;
     }
     .words { display: flex; gap: 1.8rem; justify-content: center; }
     button {
@@ -117,8 +120,55 @@
       letter-spacing: 0.18em;
       transition: opacity 180ms linear;
     }
+    .ask {
+      margin: 0;
+      padding: 0 1rem 0.45rem;
+      text-align: center;
+      color: var(--quiet);
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+    }
     #lintel.copied { opacity: 0.45; }
-    .note { padding: 0.35rem 1rem 0.85rem; color: var(--dim); }
+    .note {
+      padding: 0.35rem 1rem 0.85rem;
+      color: var(--dim);
+      transition: opacity 280ms linear;
+    }
+    .note.fade { opacity: 0; }
+    .spring {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    .foot {
+      flex-shrink: 0;
+      padding: 0.7rem 1rem 0.85rem;
+      text-align: center;
+    }
+    .colophon {
+      font-family: ui-monospace, "Liberation Mono", monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: none;
+      color: var(--quiet);
+      cursor: pointer;
+    }
+    .colophon-full { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      .colophon:hover .colophon-short { display: none; }
+      .colophon:hover .colophon-full { display: inline; }
+    }
+    .colophon.copied .colophon-short,
+    .colophon.copied .colophon-full { display: none; }
+    .colophon.copied {
+      max-width: calc(100vw - 2rem);
+      white-space: normal;
+    }
+    .colophon.copied::after {
+      content: "contract address copied";
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -131,22 +181,33 @@
   </div>
   <p class="whisper" id="figure">
     <button type="button" id="price" data-name="mint price" data-value="0.00420 eth">0.00420 eth</button>
-    <span aria-hidden="true"> · </span>
+    <span id="fig-gap" aria-hidden="true"> · </span>
     <button type="button" id="left" data-name="remaining" data-value="512">512</button>
+    <button type="button" id="mint-no" data-name="print" hidden></button>
   </p>
   <div class="lintel" id="lintel-wrap" hidden>
     <button type="button" id="lintel" aria-live="polite"></button>
   </div>
+  <p class="ask" id="ask" hidden></p>
   <div class="threshold">
     <div class="words">
       <button type="button" id="connect" aria-pressed="false">connect</button>
       <button type="button" id="mint" aria-pressed="false">mint</button>
+      <button type="button" id="walk" hidden>walk</button>
     </div>
   </div>
   <p class="note" id="note"></p>
+  <div class="spring" aria-hidden="true"></div>
+  <footer class="foot">
+    <button type="button" id="fork" class="colophon" data-full="0x47FA611Bb47f2172b99135D6c00dC5555ca230C1" aria-label="0x47FA611Bb47f2172b99135D6c00dC5555ca230C1">
+      <span class="colophon-short">a230c1</span>
+      <span class="colophon-full">0x47FA611Bb47f2172b99135D6c00dC5555ca230C1</span>
+    </button>
+  </footer>
   <script src="keccak256.js"></script>
   <script src="palettes.js"></script>
   <script src="render.js"></script>
+  <script src="fork.js"></script>
   <script src="door.js"></script>
   <script src="mint.js"></script>
 </body>

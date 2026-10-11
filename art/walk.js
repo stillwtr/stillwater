@@ -120,6 +120,8 @@
   var askGen = 0;
   var plateAsk = null;
   var walletKey = "";
+  var liveAccounts = null;
+  var didAsk = false;
   var hallWorker = null;
   var hallReady = false;
   var hallProof = null;
@@ -135,11 +137,24 @@
   var plateRole = null;
   var pageStill = false;
 
+  function chromeBeside(court) {
+    var extra = 0;
+    var el;
+    for (el = document.body.firstElementChild; el; el = el.nextElementSibling) {
+      if (el === court) continue;
+      if (getComputedStyle(el).display === "none") continue;
+      extra += el.offsetHeight;
+    }
+    return extra;
+  }
+
   function fit() {
     var court = canvas.parentElement.parentElement;
     var pad = getComputedStyle(canvas.parentElement);
     var lip = (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
-    var room = Math.min(court.clientWidth, court.clientHeight) - lip;
+    var roomW = court.clientWidth || document.documentElement.clientWidth;
+    var roomH = window.innerHeight - chromeBeside(court);
+    var room = Math.min(roomW, roomH) - lip;
     var mult = Math.max(1, Math.floor(room / 128));
     var px = String(mult * 128) + "px";
     canvas.style.width = px;
@@ -945,7 +960,7 @@
     returnBtn.hidden = true;
     cancelBtn.hidden = true;
     dateBtn.hidden = true;
-    if (!plateRole || !walletKey) {
+    if (!plateRole || !walletKey || !accountHas(walletKey)) {
       cancelBtn.setAttribute("aria-pressed", "false");
       dateBtn.setAttribute("aria-pressed", "false");
       closeVault();
@@ -966,6 +981,12 @@
     if (!returns) closeReturn();
     if (!showCancel) cancelBtn.setAttribute("aria-pressed", "false");
     if (!showDate) dateBtn.setAttribute("aria-pressed", "false");
+    if (!accountHas(plateRole.title)) {
+      showList = false;
+      titleHere = false;
+      closeVault();
+      closeList();
+    }
     listBtn.hidden = !showList;
     parkBtn.hidden = !titleHere;
     returnBtn.hidden = !returns;
@@ -994,9 +1015,24 @@
     if (!eth || !eth.request || walletKey || StillDoor.isOff()) return;
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
       if (walletKey || StillDoor.isOff()) return;
-      if (!accounts || !accounts[0]) return;
-      adoptKey(accounts[0]);
+      liveAccounts = accounts || [];
+      if (!liveAccounts[0]) return;
+      adoptKey(liveAccounts[0]);
     }).catch(function () {});
+  }
+
+  function accountHas(addr) {
+    var i;
+    if (!liveAccounts || !addr) return false;
+    for (i = 0; i < liveAccounts.length; i++) {
+      if (sameAddr(liveAccounts[i], addr)) return true;
+    }
+    return false;
+  }
+
+  function clearStaleNote() {
+    var text = note.textContent;
+    if (text === NO_HELD || text === NO_LISTED || text === "mailbox named") setNote("");
   }
 
   function setWallet(value) {
@@ -1005,6 +1041,7 @@
     walletKey = next;
     StillDoor.write(walletKey);
     if (next) StillDoor.off(false);
+    if (changed) clearStaleNote();
     if (changed && isFour(hall && hall.contract)) {
       fourBind(walletKey);
       if (index >= 1) {
@@ -1043,7 +1080,8 @@
       return;
     }
     window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
-      setWallet(accounts && accounts[0] ? accounts[0] : "");
+      liveAccounts = accounts || [];
+      setWallet(liveAccounts[0] || "");
       if (note.textContent === "connect") setNote("");
       paintDoor();
       paintRole();
@@ -1540,7 +1578,7 @@
     pageStill = !!q.still;
     snow();
     hall = hallFrom(q);
-    if (isFour(hall.contract)) fourBind(StillDoor.read());
+    if (isFour(hall.contract)) fourBind("");
     if (!MAINNET_STILL || isFour(hall.contract)) {
       doorNext = 0;
       doorKnown = true;
@@ -1608,19 +1646,63 @@
     readHeld();
   }
 
+  /* A saved key is connected only when eth_accounts already lists it. */
   function resumeKey() {
     var saved = StillDoor.read();
-    if (saved) {
-      adoptKey(saved);
+    var eth = window.ethereum;
+    if (!eth || !eth.request) {
+      liveAccounts = [];
+      if (saved) setWallet("");
+      paintDoor();
+      paintRole();
       return;
     }
-    if (StillDoor.isOff()) return;
-    pullGranted();
+    eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      var list = accounts || [];
+      var known = false;
+      var i;
+      liveAccounts = list;
+      for (i = 0; i < list.length; i++) {
+        if (saved && sameAddr(list[i], saved)) known = true;
+      }
+      if (saved && known) {
+        adoptKey(saved);
+        return;
+      }
+      if (saved && !known) {
+        setWallet("");
+        paintDoor();
+        paintRole();
+        if (didAsk) return;
+        didAsk = true;
+        eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+          liveAccounts = asked || [];
+          if (liveAccounts[0]) adoptKey(liveAccounts[0]);
+          else {
+            paintDoor();
+            paintRole();
+          }
+        }).catch(function (err) {
+          if (err && err.code === 4001) setNote("declined");
+        });
+        return;
+      }
+      if (list[0] && !StillDoor.isOff()) adoptKey(list[0]);
+      else {
+        paintDoor();
+        paintRole();
+      }
+    }).catch(function () {
+      liveAccounts = [];
+      if (saved) setWallet("");
+      paintDoor();
+      paintRole();
+    });
   }
 
   window.addEventListener("storage", function (ev) {
     if (!ev || ev.key !== StillDoor.name) return;
-    adoptKey(ev.newValue || "");
+    resumeKey();
   });
 
   window.addEventListener("pageshow", function () {
@@ -1801,12 +1883,13 @@
   function enterFilter(kind) {
     var scan;
     var empty = kind === "listed" ? NO_LISTED : NO_HELD;
-    if (kind === "held" && !walletKey) {
-      setNote("connect");
-      return;
-    }
     if (lit === kind) {
       enterLive();
+      return;
+    }
+    if (kind === "held" && !walletKey) {
+      light("held");
+      setNote("connect");
       return;
     }
     if (kind === "listed") listedCount = 0;
@@ -2054,12 +2137,33 @@
   }
 
   function keyFrom(contract) {
+    var eth, saved;
     if (isFour(contract)) return Promise.resolve([walletKey]);
-    if (!window.ethereum) {
+    eth = window.ethereum;
+    if (!eth || !eth.request) {
       window.location.assign(DOOR);
       return Promise.reject(new Error("wallet"));
     }
-    return window.ethereum.request({ method: "eth_requestAccounts" });
+    saved = walletKey || StillDoor.read();
+    return eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      var list = accounts || [];
+      var known = false;
+      var i;
+      liveAccounts = list;
+      for (i = 0; i < list.length; i++) {
+        if (saved && sameAddr(list[i], saved)) known = true;
+      }
+      if (list.length && (known || !saved)) return list;
+      if (saved && !known) {
+        setWallet("");
+        paintDoor();
+        paintRole();
+      }
+      return eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+        liveAccounts = asked || [];
+        return liveAccounts;
+      });
+    });
   }
 
   function readNode(url, params) {
@@ -2258,7 +2362,10 @@
     }
     raw = listPrice.value.trim();
     word = ethWei(raw);
-    if (!word) return;
+    if (!word) {
+      setNote("bad price");
+      return;
+    }
     mine = listTicket;
     role = {
       chain: plateRole.chain,
@@ -2307,7 +2414,10 @@
       }
     }).catch(function (err) {
       listConfirm.setAttribute("aria-pressed", "false");
-      noteWhy(err);
+      if (err && err.code === 4001) setNote("declined");
+      else if (err && err.why) setNote(err.why);
+      else if (err && (err.message === "key" || err.message === "title")) setNote("connect");
+      else setNote(WEATHER);
     });
   }
 
@@ -2498,8 +2608,18 @@
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (accounts) {
       var next = accounts && accounts[0];
+      liveAccounts = accounts || [];
       if (!next) {
-        if (!walletKey && !StillDoor.isOff()) pullGranted();
+        if (walletKey) {
+          setWallet("");
+          heldBalance = 0;
+          closeVault();
+          closeList();
+          closeReturn();
+          paintDoor();
+          paintRole();
+          arrows();
+        }
         return;
       }
       if (StillDoor.isOff() && !walletKey) return;

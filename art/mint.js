@@ -9,19 +9,18 @@
 
   var lintelWrap = document.getElementById("lintel-wrap");
   var lintel = document.getElementById("lintel");
+  var askEl = document.getElementById("ask");
   var note = document.getElementById("note");
   var connectBtn = document.getElementById("connect");
   var mintBtn = document.getElementById("mint");
+  var walkBtn = document.getElementById("walk");
   var priceBtn = document.getElementById("price");
   var left = document.getElementById("left");
+  var figGap = document.getElementById("fig-gap");
+  var mintNo = document.getElementById("mint-no");
   var gridEl = document.getElementById("grid");
   var pool = document.getElementById("pool-wrap");
   var canvas = document.getElementById("pool");
-  var COL_ADDR = [
-    "0x0000000000000000000000000000000000000002",
-    "0x0000000000000000000000000000000000000003",
-    "0x0000000000000000000000000000000000000001"
-  ];
   var ROWS = [1, 256, 4096];
   var cells = [];
   var figureToken = 0;
@@ -44,8 +43,15 @@
   var plateBytes = null;
   var plateNonce = 0;
   var ticket = 0;
+  var walkId = 0;
+  var nameLink = document.querySelector(".name a");
+
+  function walkHref(id) {
+    return "walk.html?chain=mainnet&contract=" + STILL + "&id=" + id + "&mode=live";
+  }
 
   function setNote(text) {
+    note.classList.remove("fade");
     note.textContent = text;
     if (text === "the chain did not answer") note.title = "nonce read failed";
     else note.removeAttribute("title");
@@ -83,6 +89,32 @@
     lintel.textContent = "";
     lintel.removeAttribute("data-full");
     lintelWrap.hidden = true;
+    hideAsk();
+  }
+
+  function hideAsk() {
+    askEl.hidden = true;
+    askEl.textContent = "";
+  }
+
+  function hideWalk() {
+    walkId = 0;
+    walkBtn.hidden = true;
+    if (nameLink) nameLink.setAttribute("href", "walk.html");
+  }
+
+  function showWalk(id) {
+    if (!(id >= 1) || pool.hidden) return;
+    walkId = id;
+    walkBtn.hidden = false;
+    if (nameLink) nameLink.setAttribute("href", walkHref(id));
+  }
+
+  function padWord(hex) {
+    var s = String(hex || "").replace(/^0x/i, "").toLowerCase();
+    if (s.length > 64) s = s.slice(s.length - 64);
+    while (s.length < 64) s = "0" + s;
+    return s;
   }
 
   function showAddress() {
@@ -149,15 +181,19 @@
     return ok;
   }
 
-  function copyText(text) {
+  function writeCopy(text, done) {
     var clip = null;
     var legacy = false;
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
       try { clip = navigator.clipboard.writeText(text); } catch (e) { clip = null; }
     }
     legacy = copyFallback(text);
-    if (legacy) markCopied();
-    if (clip && typeof clip.then === "function") clip.then(function () { markCopied(); }, function () {});
+    if (legacy && done) done();
+    if (clip && typeof clip.then === "function") clip.then(function () { if (done) done(); }, function () {});
+  }
+
+  function copyText(text) {
+    writeCopy(text, markCopied);
   }
 
   function hexWord(n) {
@@ -165,7 +201,7 @@
     return "0".repeat(64 - s.length) + s;
   }
 
-  function encodeMint(proof) {
+  function encodeProof(sig, proof) {
     var body = hexWord(32) + hexWord(proof.length);
     var i;
     var word;
@@ -173,7 +209,11 @@
       word = String(proof[i]).replace(/^0x/i, "").toLowerCase();
       body += "0".repeat(64 - word.length) + word;
     }
-    return "0x" + MINT_SIG + body;
+    return "0x" + sig + body;
+  }
+
+  function encodeMint(proof) {
+    return encodeProof(MINT_SIG, proof);
   }
 
   function disarm() {
@@ -191,9 +231,24 @@
     return (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
   }
 
+  function chromeHeight(court) {
+    var extra = 0;
+    var el;
+    for (el = document.body.firstElementChild; el; el = el.nextElementSibling) {
+      if (el === court || el.classList.contains("spring")) continue;
+      if (getComputedStyle(el).display === "none") continue;
+      extra += el.offsetHeight;
+    }
+    return extra;
+  }
+
+  /* One plate fills the room left under the name. The grid keeps its own measure. */
   function fitPlate() {
     var court = canvas.parentElement.parentElement;
-    var room = Math.min(court.clientWidth, court.clientHeight) - lipOf(canvas.parentElement);
+    var lip = lipOf(canvas.parentElement);
+    var roomW = court.clientWidth || document.documentElement.clientWidth;
+    var roomH = window.innerHeight - chromeHeight(court);
+    var room = Math.min(roomW, roomH) - lip;
     var mult = Math.max(1, Math.floor(room / 128));
     var px = String(mult * 128) + "px";
     canvas.style.width = px;
@@ -215,7 +270,9 @@
     }
 
     while (span(mult + 1) <= availW && span(mult + 1) <= availH) mult += 1;
-    size = String(mult * 128) + "px";
+    var cell = mult * 128;
+    while (cell > 16 && (3 * (cell + lip) + 2 * gap) > availW) cell -= 1;
+    size = String(cell) + "px";
     gridEl.style.gridTemplateColumns = "repeat(3, max-content)";
     for (i = 0; i < cells.length; i++) {
       cells[i].canvas.style.width = size;
@@ -228,251 +285,93 @@
     else fitPlate();
   }
 
-  function cellPace(cell) {
-    var buf = new Uint8Array(24);
-    var n = cell.nonce;
-    var hash;
-    var acc = 0;
+  function freshLake() {
+    var bytes = new Uint8Array(20);
+    var hex = "";
     var i;
-    buf.set(cell.bytes, 0);
-    buf[20] = (n >>> 24) & 255;
-    buf[21] = (n >>> 16) & 255;
-    buf[22] = (n >>> 8) & 255;
-    buf[23] = n & 255;
-    hash = PlateKeccak.keccak256(buf);
-    for (i = 0; i < 4; i++) acc = (acc * 256) + hash[i];
-    return (6 + (acc % 7)) * 1000;
+    crypto.getRandomValues(bytes);
+    for (i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, "0");
+    return { bytes: bytes, hex: hex };
   }
 
+  /* Three new lakes each load. One column is one lake at nonce 1, 256, and 4096. */
   function buildGrid() {
-    var cols = [null, null, null];
+    var lakes = [freshLake(), freshLake(), freshLake()];
     var row;
-    var pal;
-    var bytes;
+    var lake;
     var wrap;
     var cv;
     var cell;
-    var i;
-    for (i = 0; i < COL_ADDR.length; i++) {
-      bytes = Plate.parseAddress(COL_ADDR[i]);
-      cols[Plate.derive(bytes).palette] = bytes;
-    }
     for (row = 0; row < ROWS.length; row++) {
-      for (pal = 0; pal < 3; pal++) {
+      for (lake = 0; lake < lakes.length; lake++) {
         wrap = document.createElement("div");
         wrap.className = "pool";
         cv = document.createElement("canvas");
         cv.width = 128;
         cv.height = 128;
-        cv.setAttribute("data-pal", Plate.PALETTES[pal].name);
+        cv.setAttribute("data-lake", lakes[lake].hex);
         cv.setAttribute("data-nonce", String(ROWS[row]));
         wrap.appendChild(cv);
         gridEl.appendChild(wrap);
-        cell = { canvas: cv, bytes: cols[pal], nonce: ROWS[row], phase: 0 };
-        cell.canvas.setAttribute("data-pace", String(cellPace(cell) / 1000));
+        cell = { canvas: cv, bytes: lakes[lake].bytes, nonce: ROWS[row], phase: 0 };
         cells.push(cell);
       }
     }
   }
 
-  var gridTimer = null;
-
-  function clearGridTimer() {
-    if (gridTimer) clearTimeout(gridTimer);
-    gridTimer = null;
-  }
-
-  /* One paint of the step a plate has reached. Missed steps are not drawn. */
-  function paintReached(cell, now) {
-    var late, steps;
-    if (!cell.ms || !cell.due || now < cell.due) return;
-    late = now - cell.due;
-    steps = Math.floor(late / cell.ms) + 1;
-    cell.phase = (cell.phase + (steps % 32)) & 31;
-    cell.due += steps * cell.ms;
-    Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
-  }
-
-  /* A slow paint must not leave the next wake already due. */
-  function parkBehind(now) {
-    var i, cell;
-    for (i = 0; i < cells.length; i++) {
-      cell = cells[i];
-      if (!cell.ms || !cell.due || cell.paused) continue;
-      if (cell.due <= now) cell.due = now + cell.ms;
-    }
-  }
-
-  function nextGridWait(now) {
-    var i, cell, best;
-    best = 0;
-    for (i = 0; i < cells.length; i++) {
-      cell = cells[i];
-      if (!cell.ms || !cell.due || cell.paused) continue;
-      if (!best || cell.due < best) best = cell.due;
-    }
-    if (!best) return 0;
-    if (best <= now) return 1;
-    return best - now;
-  }
-
-  function armGridWait() {
-    var wait;
-    clearGridTimer();
-    if (document.hidden || gridEl.hidden) return;
-    wait = nextGridWait(Date.now());
-    if (!wait) return;
-    gridTimer = setTimeout(gridWake, wait);
-  }
-
-  function gridWake() {
-    var now, i;
-    gridTimer = null;
-    if (document.hidden || gridEl.hidden) return;
-    now = Date.now();
-    for (i = 0; i < cells.length; i++) {
-      if (cells[i].paused) continue;
-      paintReached(cells[i], now);
-    }
-    parkBehind(Date.now());
-    armGridWait();
-  }
-
-  function plateStep() {
-    timer = null;
-    if (document.hidden) {
-      platePaused = true;
-      return;
-    }
-    if (!plateBytes || !Plate.crawls(MODE)) return;
-    phase = (phase + 1) & 31;
-    plateDue += plateMs;
-    if (plateDue <= Date.now()) plateDue = Date.now() + plateMs;
-    Plate.paint(canvas, plateBytes, plateNonce, phase);
-    plateWait();
-  }
-
-  function plateWait() {
-    var wait;
-    if (timer) clearTimeout(timer);
-    timer = null;
-    if (!plateMs || !plateBytes || !Plate.crawls(MODE)) return;
-    if (document.hidden) {
-      platePaused = true;
-      return;
-    }
-    platePaused = false;
-    wait = plateDue - Date.now();
-    if (wait < 1) wait = plateMs;
-    timer = setTimeout(plateStep, wait);
-  }
-
-  function plateReach() {
-    var now, late, steps;
-    if (!platePaused || pool.hidden) return;
-    platePaused = false;
-    now = Date.now();
-    if (plateDue && now >= plateDue) {
-      late = now - plateDue;
-      steps = Math.floor(late / plateMs) + 1;
-      phase = (phase + (steps % 32)) & 31;
-      plateDue += steps * plateMs;
-      Plate.paint(canvas, plateBytes, plateNonce, phase);
-    }
-    plateWait();
-  }
-
-  function pauseCrawls() {
-    var i;
-    if (!gridEl.hidden) {
-      clearGridTimer();
-      for (i = 0; i < cells.length; i++) {
-        if (!cells[i].ms || !cells[i].due) continue;
-        cells[i].paused = true;
-      }
-    }
-    if (!pool.hidden && plateMs && plateDue) {
-      if (timer) clearTimeout(timer);
-      timer = null;
-      platePaused = true;
-    }
-  }
-
-  function wakeCrawls() {
-    var i, now;
-    if (!gridEl.hidden) {
-      now = Date.now();
-      for (i = 0; i < cells.length; i++) {
-        if (!cells[i].paused) continue;
-        cells[i].paused = false;
-        paintReached(cells[i], now);
-      }
-      parkBehind(Date.now());
-      armGridWait();
-    }
-    plateReach();
-  }
-
   function hideGrid() {
-    var i;
-    clearGridTimer();
-    for (i = 0; i < cells.length; i++) {
-      cells[i].paused = false;
-      cells[i].due = 0;
-    }
     gridEl.hidden = true;
   }
 
   function showGrid() {
-    var i, cell, now;
+    var i, cell;
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
     clearAddress();
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
-      Plate.paint(cell.canvas, cell.bytes, cell.nonce, cell.phase);
+      cell.phase = 0;
+      Plate.paint(cell.canvas, cell.bytes, cell.nonce, 0);
     }
-    /* Dues start after the opening paints, so a slow first frame cannot trip the next step. */
-    now = Date.now();
-    for (i = 0; i < cells.length; i++) {
-      cell = cells[i];
-      if (!cell.ms) cell.ms = Number(cell.canvas.getAttribute("data-pace")) * 1000;
-      cell.due = now + cell.ms;
-      cell.paused = !!document.hidden;
-    }
-    if (!document.hidden) armGridWait();
     fit();
+  }
+
+  function showPriceLine() {
+    priceBtn.hidden = false;
+    figGap.hidden = false;
+    left.hidden = false;
+    mintNo.hidden = true;
+    mintNo.textContent = "";
+    mintNo.removeAttribute("data-value");
+  }
+
+  function showMintNumber(id) {
+    var text = "#" + id;
+    priceBtn.hidden = true;
+    figGap.hidden = true;
+    left.hidden = true;
+    mintNo.hidden = false;
+    mintNo.textContent = text;
+    mintNo.setAttribute("data-value", text);
   }
 
   function hidePlate() {
     disarm();
     pool.hidden = true;
+    hideWalk();
+    showPriceLine();
+    mintBtn.hidden = false;
     showGrid();
-  }
-
-  function arm(bytes, nonce) {
-    var hash, n, i;
-    disarm();
-    if (!bytes || !Plate.crawls(MODE)) return;
-    hash = PlateKeccak.keccak256(bytes);
-    n = 0;
-    for (i = 0; i < 4; i++) n = (n * 256) + hash[i];
-    phase = 0;
-    plateBytes = bytes;
-    plateNonce = nonce;
-    plateMs = (6 + (n % 7)) * 1000;
-    plateDue = Date.now() + plateMs;
-    plateWait();
   }
 
   function showPlate(bytes, nonce) {
     hideGrid();
+    disarm();
     pool.hidden = false;
     showAddress();
     Plate.paint(canvas, bytes, nonce, 0);
     fit();
-    arm(bytes, nonce);
   }
 
   function restoreFigure(el) {
@@ -489,6 +388,7 @@
     token = ++figureToken;
     restoreFigure(priceBtn);
     restoreFigure(left);
+    restoreFigure(mintNo);
     el.setAttribute("data-open", "1");
     el.textContent = label;
     setTimeout(function () {
@@ -504,6 +404,34 @@
   function setRemaining(n) {
     left.setAttribute("data-value", String(n));
     if (left.getAttribute("data-open") !== "1") left.textContent = String(n);
+  }
+
+  function postNode(url, method, params) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: method, params: params })
+    }).then(function (res) {
+      if (!res.ok) throw new Error("http");
+      return res.json();
+    });
+  }
+
+  function nonceAt(addr) {
+    var params = [checksum(addr), "latest"];
+    function once(url) {
+      return postNode(url, "eth_getTransactionCount", params).then(function (body) {
+        if (!body || body.result == null || body.error) throw new Error("nonce");
+        return body.result;
+      });
+    }
+    return once(RPCS[0]).catch(function () {
+      return once(RPCS[1]);
+    }).catch(function () {
+      var err = new Error("nonce");
+      err.nonce = true;
+      throw err;
+    });
   }
 
   function rpc(method, params, i) {
@@ -531,16 +459,34 @@
       setNote("checksum");
       return;
     }
-    rpc("eth_getTransactionCount", [checksum(addr), "latest"]).then(function (hex) {
+    nonceAt(addr).then(function (hex) {
       var n;
-      if (mine !== ticket) return;
+      var err;
+      if (mine !== ticket) return null;
       n = parseInt(hex, 16);
-      if (!(n >= 0)) throw new Error("nonce");
+      if (!(n >= 0)) {
+        err = new Error("nonce");
+        err.nonce = true;
+        throw err;
+      }
+      return rpc("eth_call", [{ to: STILL, data: "0xeb15aad2" + padWord(addr) }, "latest"]).then(function (idHex) {
+        return { n: n, idHex: idHex };
+      });
+    }).then(function (got) {
+      var id;
+      if (!got || mine !== ticket) return;
+      id = parseInt(got.idHex, 16);
+      if (!(id >= 1)) {
+        hidePlate();
+        return;
+      }
       setNote("");
-      showPlate(bytes, n);
-    }).catch(function () {
+      mintBtn.hidden = true;
+      showMintNumber(id);
+      showPlate(bytes, got.n);
+      showWalk(id);
+    }).catch(function (err) {
       if (mine !== ticket) return;
-      hidePlate();
       setNote("the chain did not answer");
     });
   }
@@ -548,8 +494,12 @@
   function applyKey() {
     var mine = ++ticket;
     heldProof = null;
-    hidePlate();
-    if (!key) return;
+    if (!key || !STILL) {
+      hidePlate();
+      return;
+    }
+    mintBtn.hidden = true;
+    drawKey(key, mine);
     if (!proofsReady) return;
     if (!proofsOk) {
       setNote(listNote);
@@ -559,8 +509,50 @@
     worker.postMessage({ id: pending.id, addr: key.toLowerCase() });
   }
 
+  /* Anvil can answer the send before latest moves. Wait until that block is visible. */
+  function receiptOf(hash, i) {
+    if (!i) i = 0;
+    if (i >= RPCS.length) return Promise.reject(new Error("pending"));
+    return fetch(RPCS[i], {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [hash] })
+    }).then(function (res) {
+      if (!res.ok) throw new Error("http");
+      return res.json();
+    }).then(function (body) {
+      if (!body || body.error) throw new Error("node");
+      if (!body.result) throw new Error("pending");
+      return body.result;
+    }).catch(function (err) {
+      if (err && err.message === "pending") throw err;
+      return receiptOf(hash, i + 1);
+    });
+  }
+
+  function settled(hash, attempt) {
+    if (!attempt) attempt = 0;
+    if (!hash || attempt > 40) return Promise.reject(new Error("receipt"));
+    return receiptOf(hash).then(function (receipt) {
+      var status = receipt && receipt.status;
+      var mined = receipt && receipt.blockNumber;
+      if (!mined) throw new Error("pending");
+      if (status === "0x0" || status === "0x00") return Promise.reject(new Error("revert"));
+      return rpc("eth_blockNumber", []).then(function (hex) {
+        if (parseInt(hex, 16) >= parseInt(mined, 16)) return;
+        throw new Error("pending");
+      });
+    }).catch(function (err) {
+      if (err && (err.message === "revert" || err.message === "receipt")) return Promise.reject(err);
+      return new Promise(function (resolve, reject) {
+        setTimeout(function () {
+          settled(hash, attempt + 1).then(resolve, reject);
+        }, 50);
+      });
+    });
+  }
+
   function readLeft() {
-    setRemaining(SUPPLY);
     if (!STILL) return;
     rpc("eth_call", [{ to: STILL, data: NEXT_ID }, "latest"]).then(function (hex) {
       var n = parseInt(hex, 16);
@@ -569,7 +561,9 @@
       remain = SUPPLY - n;
       if (remain < 0) remain = 0;
       setRemaining(remain);
-    }).catch(function () {});
+    }).catch(function () {
+      setNote("the chain did not answer");
+    });
   }
 
   function ensureMainnet() {
@@ -650,15 +644,17 @@
       return window.ethereum.request({
         method: "eth_sendTransaction",
         params: [sent]
+      }).then(function (hash) {
+        return settled(hash);
       });
     }).then(function () {
       mintBtn.setAttribute("aria-pressed", "false");
-      setNote("sent");
       readLeft();
+      drawKey(key, ticket);
     }).catch(function (err) {
       mintBtn.setAttribute("aria-pressed", "false");
       if (err && err.code === 4001) setNote("declined");
-      else setNote("mainnet");
+      else setNote("not minted");
     });
   }
 
@@ -668,8 +664,30 @@
   });
   priceBtn.addEventListener("click", function () { showFigureName(priceBtn); });
   left.addEventListener("click", function () { showFigureName(left); });
+  mintNo.addEventListener("click", function () { showFigureName(mintNo); });
   connectBtn.addEventListener("click", onConnect);
   mintBtn.addEventListener("click", mint);
+  (function () {
+    var forkBtn = document.getElementById("fork");
+    var forkTimer = null;
+    if (!forkBtn) return;
+    forkBtn.addEventListener("click", function () {
+      var full = forkBtn.getAttribute("data-full");
+      if (!full) return;
+      writeCopy(full, function () {
+        forkBtn.classList.add("copied");
+        if (forkTimer) clearTimeout(forkTimer);
+        forkTimer = setTimeout(function () {
+          forkTimer = null;
+          forkBtn.classList.remove("copied");
+        }, 1600);
+      });
+    });
+  })();
+  walkBtn.addEventListener("click", function () {
+    if (!(walkId >= 1) || walkBtn.hidden) return;
+    window.location.assign(walkHref(walkId));
+  });
   window.addEventListener("resize", fit);
 
   function startHall() {
@@ -712,11 +730,9 @@
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) pauseCrawls();
-    else wakeCrawls();
+    if (document.hidden) disarm();
   });
-
-  /* The Walk and this page share one key. An empty account list does not clear it. */
+  /* The Walk and this page share one key. A saved key the wallet does not list is cleared. */
   function adopt(value) {
     if (!value) {
       if (!key) return;
@@ -749,14 +765,42 @@
     }).catch(function () {});
   }
 
+  var didAsk = false;
+
+  /* A saved key is connected only when this wallet already lists it. */
   function resume() {
     var saved = StillDoor.read();
-    if (saved) {
-      adopt(saved);
+    var eth = window.ethereum;
+    if (!eth || !eth.request) {
+      if (saved) showKey("");
       return;
     }
-    if (StillDoor.isOff()) return;
-    pullGranted();
+    eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      var list = accounts || [];
+      var known = false;
+      var i;
+      for (i = 0; i < list.length; i++) {
+        if (saved && String(list[i]).toLowerCase() === saved.toLowerCase()) known = true;
+      }
+      if (saved && known) {
+        adopt(saved);
+        return;
+      }
+      if (saved && !known) {
+        showKey("");
+        if (didAsk) return;
+        didAsk = true;
+        eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+          if (asked && asked[0]) adopt(asked[0]);
+        }).catch(function (err) {
+          if (err && err.code === 4001) setNote("declined");
+        });
+        return;
+      }
+      if (list[0] && !StillDoor.isOff()) adopt(list[0]);
+    }).catch(function () {
+      if (saved) showKey("");
+    });
   }
 
   function watchKey() {
@@ -764,7 +808,11 @@
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (accounts) {
       var next = accounts && accounts[0];
-      if (!next) return;
+      if (!next) {
+        if (key) showKey("");
+        hidePlate();
+        return;
+      }
       if (StillDoor.isOff() && !key) return;
       adopt(next);
     });
@@ -772,7 +820,7 @@
 
   window.addEventListener("storage", function (ev) {
     if (!ev || ev.key !== StillDoor.name) return;
-    adopt(ev.newValue || "");
+    resume();
   });
 
   window.addEventListener("pageshow", function () {

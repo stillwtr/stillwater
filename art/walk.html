@@ -222,6 +222,18 @@
       transition: opacity 280ms linear;
     }
     .note.fade { opacity: 0; }
+    @media (max-width: 480px) {
+      .court {
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: flex-start;
+      }
+      .mode {
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+      }
+      .words { gap: 0.55rem; }
+    }
   </style>
 </head>
 <body>
