@@ -1,198 +1,74 @@
 # Sepolia
 
-Live deploy of the same `Stillwater.sol`. The constructor argument on this network is a temporary three-key root. The walker root was not written into the source. `script/ForkProve.s.sol` still passes the walker root. `script/Sepolia.s.sol` passes the temporary root. Price is 0 because the chain id is not 1.
+This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, and cancel.
 
-Nothing here was committed. `.env` was not modified.
-
-- Chain id: 11155111
-- Stillwater: `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34`
-- Deploy tx: `0x471974ed88c3a1ba5c6ddb44484f9c1c8cf683d04178ed5d76aabfe66f600eb2`
-- Block: 11811600
+- Stillwater: `0xc81148AA098723d4CbfaAd5517032D4fdFd87662`
+- Deploy tx: `0x5d6ae64e48ab6fbf1a9ff31ed78ec71f99ef5e2cfc1b5b421ec8b409a1fa9e4e`
+- Block: 11893987
+- Gas used: 19252085
 - Status: success
-- Gas used: 2543581
 - Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
-- Temporary root: `0x5f9e4e542dae379422b58b3c301884cce31ab11d5407be39a7509f5b9725e47f`
-- Walker root at the time of this deploy, not used here: `0xbe0d924b59dbc07be545915c0d134d2fb2d270559d2f00320411cffee789183c`
-- The hall root was cleaned after this deploy. Sepolia was not redeployed. The current root is in `snapshot/root-walkers.txt`.
-- Price read back: 0
-- Name / symbol: Stillwater / STILL
-- walkBase: `https://walk.test/`
+- Tiny root: `0x1df0d632551c27e813e322925bf8391506813d54574df108eab5bd63f3a4d384`
+- walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
 - solc: 0.8.37
 - viaIR: false
-- Token 1 is minted. `datedBlock` is 11811822. Owner and title are the deployer. `mailboxOf(1)` is zero because the vault sent the print home.
-- Contract: https://sepolia.etherscan.io/address/0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34
-- Transaction: https://sepolia.etherscan.io/tx/0x471974ed88c3a1ba5c6ddb44484f9c1c8cf683d04178ed5d76aabfe66f600eb2
+- nextId: 1
 
-The receipt is in `broadcast/Sepolia.s.sol/11155111/run-latest.json`. That file does not contain the private key.
+https://sepolia.etherscan.io/address/0xc81148AA098723d4CbfaAd5517032D4fdFd87662
 
-## Temporary list
+https://sepolia.etherscan.io/tx/0x5d6ae64e48ab6fbf1a9ff31ed78ec71f99ef5e2cfc1b5b421ec8b409a1fa9e4e
 
-Three leaves. Sorted spare, then treasury, then KEY1. The last leaf is lifted.
+The walker root `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634` was not the constructor argument.
 
-- Spare: `0x00000000000000000000000000000000000A11cE`
-- Treasury (the key you control): `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
-- KEY1: `0xd934CC70B1b06256581527a534285f5bd6A7eDc7`
+## Print 1
 
-Your mint proof is these two words, in this order:
+Minted and listed from the title key `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`. Price paid to mint was 0. The list ask is 0.042 ether. `ownerOf(1)` and `titleHolder(1)` are the title key. `mailboxOf(1)` is zero.
 
-1. `0x01cca2c51782e5d5336ee6e166d2d6d5869cd779f508a19cf29878c8994a61f1`
-2. `0x734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714`
+- Mint: `0x4b8ac974646af600657a5ff0d0bb8044a079048424f5c7f1473bbdd453b68ccd` block 11894004
+- List: `0x42e8a308b155b592361f5d7b1e5541453cb9d1ada9d799d88fe36f1a0d5d894e` block 11894005
 
-The 14-word walker proof from `snapshot/fork-key1.json` does not match this root.
+`listedPrice(1)` is 42000000000000000. The list receipt status is success.
 
-## Mined
+https://sepolia.etherscan.io/tx/0x42e8a308b155b592361f5d7b1e5541453cb9d1ada9d799d88fe36f1a0d5d894e
 
-These receipts are on Sepolia. Nothing here was rebroadcast. Title `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`. Vault `0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA`. Etherscan lists 0 failed transactions for the title, so there is no mined hash for a second `date` or for a title `transferFrom`.
+## Two keys
+
+Both are on the tiny root. A stranger is any address not on this root. The vault does not need a proof. Mainnet walker proofs do not apply to this root.
+
+- Tree key A / treasury / deployer: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
+- Tree key B: `0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA`
+
+The leaf is `keccak256(bytes.concat(keccak256(abi.encode(address))))`. The root is the sorted pair of those two leaves.
+
+Proof for A, the leaf of B: `0x0571727ce22c0cd0d97f0f4767730433a249a3ac8c78ebfce10c495f44796afc`
+
+Proof for B, the leaf of A: `0x1acc0a9178455c62bde6d9e5e788ac9ef51b7906f721329a05d06c1d1625ad13`
+
+## Earlier empty hall
+
+`0x8DE89DFe42d1d5F5FD23910B98f8f66239bD5124` is an earlier deploy of the list, buy, and cancel bytecode. Same tiny root, same treasury, price 0. `nextId` stayed 0. The Walk was not pointed here.
+
+- Deploy: `0x0cfbb19a492ccf5881c32c7075e06594265c494ed67a75dd487b6823446d8e47` block 11881617
+
+## Earlier hall
+
+`0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34` is the previous Walk hall. Its bytecode has no list, buy, or cancel. Leave those receipts where they are. Do not treat them as this contract. That constructor used a temporary three-key root `0x5f9e4e542dae379422b58b3c301884cce31ab11d5407be39a7509f5b9725e47f` and `https://walk.test/`.
 
 - Deploy: `0x471974ed88c3a1ba5c6ddb44484f9c1c8cf683d04178ed5d76aabfe66f600eb2` block 11811600
 - Mint token 1, value 0: `0xb9044924de83591154227b48f2bd1977758de7d777e865caa6adaf597a1fe991` block 11811805
 - `date(1)` once: `0x3ff6a134734763e0ba44f76699f10451ea7463fa2baa8e35141857628a180634` block 11811822. That block is `datedBlock(1)`.
-- Park, `setMailbox(1, vault)` sent to the contract: `0x443554e00262ce174d08754c254270982f0141af35b8b130de9c2a395d4a7c74` block 11811865
-- Vault `transferFrom(vault, title, 1)`: `0xbd13d0ac40117bcbdecfcc0ec988adf5a3143eeb872fcc8d08dd12e134391326` block 11811894
-- Park again, same `setMailbox(1, vault)` to the contract: `0x6117b455fcafdf2cef793f7e5d8328b3c9e7e91fc53c140903904d363f589dc9` block 11812043
-- Vault `transferFrom(vault, title, 1)` again: `0x9f0b857838f4ed20a29a2a9939413dea4af004402c7021b2543e25294d5a2a51` block 11812054
+- Park, `setMailbox(1, vault)`: `0x443554e00262ce174d08754c254270982f0141af35b8b130de9c2a395d4a7c74` block 11811865
+- Vault `transferFrom` home: `0xbd13d0ac40117bcbdecfcc0ec988adf5a3143eeb872fcc8d08dd12e134391326` block 11811894
+- Park again: `0x6117b455fcafdf2cef793f7e5d8328b3c9e7e91fc53c140903904d363f589dc9` block 11812043
+- Vault `transferFrom` home again: `0x9f0b857838f4ed20a29a2a9939413dea4af004402c7021b2543e25294d5a2a51` block 11812054
 
-`0x0ce5c1616030c0b5a3921c472e6d63b4e031a083644306da4f49ffc480d4ea64` carried `setMailbox` calldata to the vault address itself. That call did not reach this contract.
+Title and vault on those receipts: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D` and `0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA`. Sourcify match 54166669 is that older bytecode.
 
-Reads after those receipts: `ownerOf(1)`, `titleHolder(1)`, `minter(1)`, and `datedBy(1)` are the title. `datedBlock(1)` is 11811822. `mailboxOf(1)` is the zero address. `price` is 0.
+## No code
 
-## Verify
+Two creates in this pass ran out of gas and left no code.
 
-Sourcify reports an exact match of the creation code and the runtime code for `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34` on chain 11155111. Compiler `0.8.37+commit.f401782d`, optimizer 200 runs, viaIR off, EVM osaka. The match id is 54166669.
+- `0xe6B178E9ad34A6f91D3C02a8F8A0726BA62ea910` tx `0xb64e5a996aaea8e2ffa79290555ef9563865478fa1cbca3c4be9235632d05c24`
+- `0x7cb7922C4136327990519D962c49bd967BF7A3d8` tx `0x9d942d27bb48e5f7486a82c4addb9537bb401028bcb0a31ab369a0e4e0a39f55`
 
-https://repo.sourcify.dev/contracts/full_match/11155111/0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34/
-
-No Etherscan API key is on this machine. Sourcify’s own Etherscan pass returned a rate limit, so Etherscan is not the record. The command below uses the same compiler settings. It does not flatten, and it does not pass `--via-ir`.
-
-```bash
-cd /home/copper/Documents/stillwater
-forge verify-contract \
-  --chain 11155111 \
-  --compiler-version 0.8.37+commit.f401782d \
-  --num-of-optimizations 200 \
-  --constructor-args 0x5f9e4e542dae379422b58b3c301884cce31ab11d5407be39a7509f5b9725e47f00000000000000000000000008d97e624214f4ca5283b47c11030ab71bc7304d00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000000a5374696c6c77617465720000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055354494c4c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001268747470733a2f2f77616c6b2e746573742f0000000000000000000000000000 \
-  0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34 \
-  src/Stillwater.sol:Stillwater
-```
-
-Constructor arguments, in order: root `0x5f9e4e542dae379422b58b3c301884cce31ab11d5407be39a7509f5b9725e47f`, treasury `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`, name `Stillwater`, symbol `STILL`, walk base `https://walk.test/`.
-
-## Checks on the deployed bytecode
-
-A fork of Sepolia at block 11811606 ran `script/SepoliaFork.s.sol` against `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34`. It did not broadcast, so the live contract is still unminted.
-
-- Treasury mint with the two-word proof. Token 1 owner and minter are the treasury.
-- Stranger `0x000000000000000000000000000000000000bEEF` used that proof and reverted `BadProof`.
-- `date(1)` once. A second `date(1)` reverted `AlreadyDated`.
-- `setMailbox(1, 0x000000000000000000000000000000000000F00D)` on the fork. Owner became the vault. Title stayed the treasury.
-- Title `transferFrom` back to itself reverted `Hook`.
-- Vault `transferFrom` to the stranger reverted `Hook`.
-- Vault `transferFrom` back to the treasury succeeded.
-- `merkleRoot` was still the temporary root.
-
-`SEPOLIA_FORK_OK`.
-
-Separate `eth_call`s against the live contract, also with no broadcast: a mint from the treasury returns success, and a mint from the stranger reverts `BadProof` (`0x7ca55c77`).
-
-## What you click
-
-Use Sepolia in the wallet. This contract does not exist on mainnet. Amount is 0 ETH. Sending ETH makes `mint` revert `BadPrice`.
-
-The contract is not verified, so Etherscan has no Write button. In MetaMask: Send, To = the contract, Amount = 0, Hex data = the calldata below. Hex data is under the transaction details. If you do not see it, turn on Settings → Advanced → Show hex data.
-
-### 1. Mint
-
-Calldata:
-
-```
-0xb77a147b0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000201cca2c51782e5d5336ee6e166d2d6d5869cd779f508a19cf29878c8994a61f1734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714
-```
-
-Or, from `/home/copper/Documents/stillwater`, with the key already in `.env`:
-
-```bash
-set -a
-source .env
-set +a
-STILL=0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34
-cast send $STILL "mint(bytes32[])" \
-  "[0x01cca2c51782e5d5336ee6e166d2d6d5869cd779f508a19cf29878c8994a61f1,0x734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714]" \
-  --rpc-url "$SEPOLIA_RPC_URL" --private-key "$PRIVATE_KEY"
-```
-
-Then:
-
-```bash
-cast call $STILL "ownerOf(uint256)(address)" 1 --rpc-url "$SEPOLIA_RPC_URL"
-```
-
-That address should be `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`.
-
-### 2. Date once
-
-Calldata:
-
-```
-0x60c757ba0000000000000000000000000000000000000000000000000000000000000001
-```
-
-```bash
-cast send $STILL "date(uint256)" 1 --rpc-url "$SEPOLIA_RPC_URL" --private-key "$PRIVATE_KEY"
-```
-
-A second date reverts `AlreadyDated` (`0x9afab451`).
-
-### 3. Park
-
-Pick a second account you already control. MetaMask can add one from the account menu. Copy its address. That address is the vault.
-
-Do not park to your own address. Do not park to `0x0000000000000000000000000000000000000000`. Do not park to `0x000000000000000000000000000000000000F00D` on this live contract. You cannot sign for that address, and the title cannot pull the print back.
-
-```bash
-VAULT=0xYourSecondAccount
-cast calldata "setMailbox(uint256,address)" 1 $VAULT
-cast send $STILL "setMailbox(uint256,address)" 1 $VAULT \
-  --rpc-url "$SEPOLIA_RPC_URL" --private-key "$PRIVATE_KEY"
-```
-
-Paste the `cast calldata` output into MetaMask if you want the click instead of `cast send`. After it confirms:
-
-```bash
-cast call $STILL "ownerOf(uint256)(address)" 1 --rpc-url "$SEPOLIA_RPC_URL"
-cast call $STILL "titleHolder(uint256)(address)" 1 --rpc-url "$SEPOLIA_RPC_URL"
-```
-
-Owner is the vault. Title is still `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`.
-
-### 4. Title pull fails
-
-This call does not send a transaction:
-
-```bash
-cast call $STILL "transferFrom(address,address,uint256)" \
-  $VAULT 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D 1 \
-  --from 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D --rpc-url "$SEPOLIA_RPC_URL"
-```
-
-It reverts `Hook` (`0x8ea23ddf`). Sending it from the title account reverts the same way.
-
-### 5. Unpark
-
-Switch MetaMask to the vault account, or sign with that account's key. The title key cannot do this step.
-
-```bash
-cast calldata "transferFrom(address,address,uint256)" \
-  $VAULT 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D 1
-```
-
-Send that calldata from the vault, amount 0, to the contract. With a key you export yourself:
-
-```bash
-cast send $STILL "transferFrom(address,address,uint256)" \
-  $VAULT 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D 1 \
-  --rpc-url "$SEPOLIA_RPC_URL" --private-key "$VAULT_KEY"
-```
-
-No vault key was created or stored for this deploy. After the vault sends it home, owner is the title again.
-
-A transfer from the vault to any address other than the title reverts `Hook`.
+A mint at nonce 20 also ran out of gas and did not create print 1: `0x088b0c45740912fb051eef7f4dc62a77073a656201f878e1ddc934c31d6fbfe5`. The mint above is the one that landed.
