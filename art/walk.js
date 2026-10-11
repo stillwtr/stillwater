@@ -45,6 +45,8 @@
   var NO_PRINT = "there is no dated print";
   var NO_LISTED = "there is no listed print";
   var NO_HELD = "there is no held print";
+  var SCAN_LISTED = "scanning for listed prints";
+  var SCAN_HELD = "scanning for held prints";
   var WEATHER = "the chain did not answer";
   var UNREAD = "the last transaction could not be read";
   var HALL_SHUT = "the hall is not open";
@@ -289,11 +291,15 @@
       || text.indexOf("a wrong vault is permanent") !== -1;
   }
 
+  function isScanNote(text) {
+    return text === SCAN_LISTED || text === SCAN_HELD;
+  }
+
   function light(which) {
     ticket += 1;
     walkTicket += 1;
     closeSearch();
-    if (actionNote() || note.textContent === "connect") setNote("");
+    if (actionNote() || note.textContent === "connect" || isScanNote(note.textContent)) setNote("");
     mark(which);
   }
 
@@ -775,6 +781,7 @@
       if (!loose && typeof msg.result !== "string") throw new Error("result");
       return msg.result;
     }).catch(function () {
+      console.log(urls[i], method);
       return ask(chain, method, params, i + 1, loose);
     });
   }
@@ -1101,7 +1108,7 @@
 
   function clearStaleNote() {
     var text = note.textContent;
-    if (text === NO_HELD || text === NO_LISTED || text === "mailbox named") setNote("");
+    if (text === NO_HELD || text === NO_LISTED || text === "mailbox named" || isScanNote(text)) setNote("");
     if (tuckedLine === NO_HELD || tuckedLine === NO_LISTED || tuckedLine === "mailbox named") tuckedLine = "";
   }
 
@@ -1902,7 +1909,7 @@
         if (scan !== false && scan !== walkTicket) return 0;
         for (k = 0; k < hits.length; k++) {
           if (hits[k] > 0) return hits[k];
-          if (hits[k] < 0) return 0;
+          if (hits[k] < 0) return -1;
         }
         return batch(i);
       });
@@ -1968,9 +1975,14 @@
       setNote(empty);
       return;
     }
+    setNote(kind === "listed" ? SCAN_LISTED : SCAN_HELD);
     scan = walkTicket;
     scanIds(kind, 1, 1, scan).then(function (id) {
       if (scan !== walkTicket || lit !== kind) return;
+      if (id < 0) {
+        setNote(WEATHER);
+        return;
+      }
       if (!(id >= 1)) {
         setNote(empty);
         return;
@@ -2259,7 +2271,10 @@
       if (!urls || i >= urls.length) return Promise.reject(why(WEATHER));
       return readNode(urls[i], params).then(function (hex) {
         var n, j;
-        try { n = BigInt(hex); } catch (e) { return step(i + 1); }
+        try { n = BigInt(hex); } catch (e) {
+          console.log(urls[i], "eth_call");
+          return step(i + 1);
+        }
         for (j = 0; j < seen.length; j++) {
           if (seen[j].n === n) return Promise.resolve(seen[j].hex);
         }
@@ -2267,6 +2282,7 @@
         return step(i + 1);
       }).catch(function (err) {
         if (err && err.why) throw err;
+        console.log(urls[i], "eth_call");
         return step(i + 1);
       });
     }
@@ -2376,6 +2392,7 @@
       setNote(vault + " — a wrong vault is permanent");
       return;
     }
+    setNote("mailbox named");
     mine = vaultTicket;
     role = {
       chain: plateRole.chain,
@@ -2416,7 +2433,11 @@
       readHeld();
     }).catch(function (err) {
       confirmBtn.setAttribute("aria-pressed", "false");
-      noteWhy(err);
+      if (err && err.message === "plate") return;
+      if (err && err.code === 4001) setNote("declined");
+      else if (err && err.why) setNote(err.why);
+      else if (err && (err.message === "key" || err.message === "title")) setNote("connect");
+      else setNote(WEATHER);
     });
   }
 
@@ -2446,38 +2467,31 @@
       title: plateRole.title
     };
     listConfirm.setAttribute("aria-pressed", "true");
+    /* Accounts, then the send. Host reads wait until the wallet has the price. */
     keyFrom(role.contract).then(function (accounts) {
       from = accounts && accounts[0] ? accounts[0] : "";
       setWallet(from);
       paintDoor();
-      if (mine !== listTicket) throw new Error("plate");
+      mine = listTicket;
       if (!from || !sameAddr(from, role.title)) throw new Error("key");
-      return Promise.all([
-        call(role.chain, role.contract, SEL.titleHolder, role.id),
-        call(role.chain, role.contract, SEL.ownerOf, role.id),
-        call(role.chain, role.contract, SEL.mailboxOf, role.id),
-        call(role.chain, role.contract, SEL.listedPrice, role.id)
-      ]);
-    }).then(function (parts) {
-      var title = addressOf(parts[0]);
-      var owner = addressOf(parts[1]);
-      var box = addressOf(parts[2]);
-      var price = 0n;
-      if (mine !== listTicket) throw new Error("plate");
-      if (!sameAddr(title, role.title) || !sameAddr(owner, role.title) || !sameAddr(from, title)) throw new Error("title");
-      try { price = BigInt(parts[3]); } catch (e) { price = 0n; }
-      if (price > 0n) throw why("already listed");
-      if (namedVault(box)) throw why("a vault is named");
-      if (mine !== listTicket) throw new Error("plate");
       return castTx(role.chain, {
         from: from,
         to: role.contract,
         data: SEL.list + pad(role.id) + word
       }).then(function (hash) {
-        return settled(role.chain, hash);
+        return settled(role.chain, hash).then(function () {
+          if (mine !== listTicket) return null;
+          return Promise.all([
+            call(role.chain, role.contract, SEL.listedPrice, role.id),
+            call(role.chain, role.contract, SEL.titleHolder, role.id),
+            call(role.chain, role.contract, SEL.ownerOf, role.id),
+            call(role.chain, role.contract, SEL.mailboxOf, role.id)
+          ]);
+        });
       });
-    }).then(function () {
+    }).then(function (parts) {
       listConfirm.setAttribute("aria-pressed", "false");
+      if (mine !== listTicket || !parts) return;
       closeList();
       setNote("listed");
       if (index === role.id) {
@@ -2486,6 +2500,7 @@
       }
     }).catch(function (err) {
       listConfirm.setAttribute("aria-pressed", "false");
+      if (err && err.message === "plate") return;
       if (err && err.code === 4001) setNote("declined");
       else if (err && err.why) setNote(err.why);
       else if (err && (err.message === "key" || err.message === "title")) setNote("connect");
@@ -2622,6 +2637,7 @@
     closeList(true);
     closeVault(true);
     tuckListedLine();
+    if (isScanNote(note.textContent)) setNote("");
     walkTicket += 1;
     lit = "search";
     listedOn = false;
