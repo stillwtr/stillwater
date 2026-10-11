@@ -23,7 +23,6 @@
     datedBlock: "0x418ab103",
     datedBy: "0x8105885e",
     minter: "0xac8d856c",
-    tokenURI: "0xc87b56dd",
     listedPrice: "0xe5a818f8",
     titleHolder: "0xc4436d2f",
     nonceProbe: "0x186ad0cf",
@@ -47,6 +46,7 @@
   var NO_HELD = "there is no held print";
   var SCAN_LISTED = "scanning for listed prints";
   var SCAN_HELD = "scanning for held prints";
+  var LOADING = "Loading";
   var WEATHER = "the chain did not answer";
   var UNREAD = "the last transaction could not be read";
   var HALL_SHUT = "the hall is not open";
@@ -108,16 +108,15 @@
   var whisperEl = document.getElementById("whisper");
   var modeBar = document.getElementById("mode-bar");
   var hall = { chain: "mainnet", contract: "", nextId: 0, known: false };
-  var doorNext = 0;
-  var doorKnown = false;
   var whisperToken = 0;
-  var listedOn = false;
-  var heldOn = false;
-  var listedCount = 0;
-  var heldBalance = 0;
   var lit = "live";
   var spareNote = false;
-  var tuckedLine = "";
+  var noteLine = "";
+  var dotBase = "";
+  var dotN = 0;
+  var dotTimer = null;
+  var painted = false;
+  var searchBack = null;
   var walkTicket = 0;
   var buyTicket = 0;
   var askGen = 0;
@@ -209,17 +208,14 @@
     mode = next === "dated" ? "dated" : (next ? "open" : "");
   }
 
-  /* One lit mode word. Search lights itself while the field is open. */
+  /* One lit mode word. SEARCH stays lit while its field or its result is up. */
   function mark(which) {
     lit = which || "";
-    listedOn = lit === "listed";
-    heldOn = lit === "held";
     liveBtn.setAttribute("aria-pressed", lit === "live" ? "true" : "false");
     datedBtn.setAttribute("aria-pressed", lit === "dated" ? "true" : "false");
     listedBtn.setAttribute("aria-pressed", lit === "listed" ? "true" : "false");
     heldBtn.setAttribute("aria-pressed", lit === "held" ? "true" : "false");
-    searchBtn.setAttribute("aria-pressed", "false");
-    if (which !== "listed") tuckedLine = "";
+    searchBtn.setAttribute("aria-pressed", lit === "search" ? "true" : "false");
     setPaint(lit === "dated" ? "dated" : (lit ? "open" : ""));
     paintRole();
     placeRows();
@@ -228,43 +224,39 @@
 
   function closeSearch() {
     field.hidden = true;
-    searchBtn.setAttribute("aria-pressed", "false");
-  }
-
-  function actionFieldOpen() {
-    return !field.hidden || !listRow.hidden || !vaultRow.hidden;
-  }
-
-  function listedYields(text) {
-    return text === "bad price" || text === "bad address"
-      || text.indexOf("a wrong vault is permanent") !== -1;
-  }
-
-  /* The empty-listed line stays down while SEARCH, list, or park is open. */
-  function tuckListedLine() {
-    if (note.textContent !== NO_LISTED) return;
-    tuckedLine = NO_LISTED;
-    setNote("");
-  }
-
-  function restoreTuckedLine() {
-    var text;
-    if (actionFieldOpen()) return;
-    if (tuckedLine !== NO_LISTED || lit !== "listed") {
-      if (lit !== "listed") tuckedLine = "";
-      return;
-    }
-    text = note.textContent;
-    if (text && text !== NO_LISTED && !listedYields(text)) {
-      tuckedLine = "";
-      return;
-    }
-    setNote(NO_LISTED);
+    if (lit !== "search") searchBtn.setAttribute("aria-pressed", "false");
   }
 
   function hideSearch() {
+    if (searchBack || lit === "search") {
+      endSearch();
+      return;
+    }
     closeSearch();
-    if (lit === "search") mark("live");
+  }
+
+  function spinDots() {
+    var dots;
+    if (!dotBase || noteLine !== dotBase) return;
+    dotN = (dotN + 1) % 3;
+    dots = dotN + 1;
+    note.textContent = dotBase + (dots === 1 ? "." : (dots === 2 ? ".." : "..."));
+  }
+
+  function armDots(base) {
+    dotBase = base;
+    dotN = 0;
+    note.classList.remove("fade");
+    note.textContent = base + ".";
+    if (dotTimer) return;
+    dotTimer = setInterval(spinDots, 380);
+  }
+
+  function stillDots() {
+    dotBase = "";
+    if (!dotTimer) return;
+    clearInterval(dotTimer);
+    dotTimer = null;
   }
 
   /* SEARCH keeps the mode row and its own field. List and park wait.
@@ -277,14 +269,14 @@
     }
     listBtn.hidden = true;
     parkBtn.hidden = true;
-    closeList(true);
-    closeVault(true);
+    closeList();
+    closeVault();
     roleRow.hidden = true;
     roleRow.style.display = "none";
   }
 
   function actionNote() {
-    var text = note.textContent;
+    var text = noteLine;
     return text === "listed" || text === "mailbox named"
       || text === "already listed" || text === "bad address"
       || text === "a vault is named"
@@ -295,12 +287,36 @@
     return text === SCAN_LISTED || text === SCAN_HELD;
   }
 
+  function emptyLine(text) {
+    return text === NO_PRINT || text === NO_LISTED || text === NO_HELD;
+  }
+
   function light(which) {
+    var back;
     ticket += 1;
     walkTicket += 1;
-    closeSearch();
-    if (actionNote() || note.textContent === "connect" || isScanNote(note.textContent)) setNote("");
+    back = searchBack;
+    searchBack = null;
+    field.hidden = true;
+    field.value = "";
+    if (back && back.index >= 1) index = back.index;
+    else if (back && back.key) searchKey = back.key;
+    if (actionNote() || noteLine === "connect" || isScanNote(noteLine)) setNote("");
+    if (which !== "dated" && noteLine === NO_PRINT) setNote("");
+    if (which !== "listed" && noteLine === NO_LISTED) setNote("");
+    if (which !== "held" && noteLine === NO_HELD) setNote("");
     mark(which);
+    return back;
+  }
+
+  /* SEARCH closes onto the id that was on the plate, and LIVE. */
+  function endSearch() {
+    var back = light("live");
+    if (back && back.index >= 1 && back.contract) {
+      openLiveToken(back.chain, back.contract, back.index);
+      return;
+    }
+    if (back && back.key) openKey(back.key, back.chain || "mainnet", null, false);
   }
 
   function keptNote() {
@@ -498,6 +514,8 @@
   }
 
   function show(bytes, nonce, who, crawlBytes, freezeTerm) {
+    var keepVerbs = isScanNote(noteLine);
+    painted = true;
     shownKey = checksum(who);
     heldBytes = bytes;
     heldNonce = nonce;
@@ -505,11 +523,14 @@
     heldTerm = freezeTerm > 0 ? freezeTerm : 0;
     if (!(spareNote && keptNote())) setNote("");
     spareNote = false;
-    hideAsk();
-    hideRole();
+    if (!keepVerbs) {
+      hideAsk();
+      hideRole();
+    }
     paintWhisper(bytes, nonce, heldTerm);
     Plate.paint(canvas, bytes, nonce, 0, heldTerm);
     fit();
+    arrows();
     arm(bytes, nonce, crawlBytes || bytes);
   }
 
@@ -521,22 +542,21 @@
   }
 
   function setNote(text) {
-    if (text === NO_LISTED && actionFieldOpen()) {
-      tuckedLine = NO_LISTED;
-      if (note.textContent !== NO_LISTED) return;
-      text = "";
-    } else if (text === NO_LISTED) {
-      tuckedLine = "";
-    } else if (text && !listedYields(text)) {
-      tuckedLine = "";
+    noteLine = text || "";
+    if (noteLine === SCAN_LISTED || noteLine === SCAN_HELD || noteLine === LOADING) {
+      armDots(noteLine);
+      note.removeAttribute("title");
+      return;
     }
+    stillDots();
     note.classList.remove("fade");
-    note.textContent = text;
-    if (text === WEATHER) note.title = "nonce read failed";
+    note.textContent = noteLine;
+    if (noteLine === WEATHER) note.title = "nonce read failed";
     else note.removeAttribute("title");
   }
 
   function weather(which) {
+    if (!painted) return;
     spareNote = false;
     if (which === "open" || which === "dated") mark(which === "dated" ? "dated" : "live");
     hideAsk();
@@ -972,23 +992,19 @@
     });
   }
 
-  function closeVault(keepLine) {
-    var wasOpen = !vaultRow.hidden;
+  function closeVault() {
     vaultTicket += 1;
     vaultSure = "";
     parkBtn.setAttribute("aria-pressed", "false");
     vaultRow.hidden = true;
     vaultField.value = "";
-    if (wasOpen && !keepLine) restoreTuckedLine();
   }
 
-  function closeList(keepLine) {
-    var wasOpen = !listRow.hidden;
+  function closeList() {
     listTicket += 1;
     listBtn.setAttribute("aria-pressed", "false");
     listRow.hidden = true;
     listPrice.value = "";
-    if (wasOpen && !keepLine) restoreTuckedLine();
   }
 
   function closeReturn() {
@@ -1012,8 +1028,6 @@
     closeList();
     closeReturn();
   }
-
-  function hideHeld() {}
 
   function priceShown() {
     return !!(plateAsk && !askEl.hidden && plateAsk.id === index);
@@ -1085,18 +1099,6 @@
     if (wait) wait.resolve(proof || null);
   }
 
-  /* A permitted key, when this page has not been disconnected. An empty list stays put. */
-  function pullGranted() {
-    var eth = window.ethereum;
-    if (!eth || !eth.request || walletKey || StillDoor.isOff()) return;
-    eth.request({ method: "eth_accounts" }).then(function (accounts) {
-      if (walletKey || StillDoor.isOff()) return;
-      liveAccounts = accounts || [];
-      if (!liveAccounts[0]) return;
-      adoptKey(liveAccounts[0]);
-    }).catch(function () {});
-  }
-
   function accountHas(addr) {
     var i;
     if (!liveAccounts || !addr) return false;
@@ -1107,9 +1109,7 @@
   }
 
   function clearStaleNote() {
-    var text = note.textContent;
-    if (text === NO_HELD || text === NO_LISTED || text === "mailbox named" || isScanNote(text)) setNote("");
-    if (tuckedLine === NO_HELD || tuckedLine === NO_LISTED || tuckedLine === "mailbox named") tuckedLine = "";
+    if (noteLine === NO_HELD || noteLine === NO_LISTED || noteLine === "mailbox named" || isScanNote(noteLine)) setNote("");
   }
 
   function setWallet(value) {
@@ -1142,7 +1142,6 @@
   function disconnectKey() {
     StillDoor.off(true);
     setWallet("");
-    heldBalance = 0;
     closeVault();
     closeList();
     closeReturn();
@@ -1159,7 +1158,7 @@
     window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
       liveAccounts = accounts || [];
       setWallet(liveAccounts[0] || "");
-      if (note.textContent === "connect") setNote("");
+      if (noteLine === "connect") setNote("");
       paintDoor();
       paintRole();
       readHeld();
@@ -1209,29 +1208,18 @@
     var chain = hall.chain;
     var contract = hall.contract;
     if (!key || !contract) {
-      heldBalance = 0;
       arrows();
-      hideHeld();
       return;
     }
-    ethCall(chain, contract, SEL.balanceOf + padAddr(key)).then(function (hex) {
-      var n;
+    ethCall(chain, contract, SEL.balanceOf + padAddr(key)).then(function () {
       if (mine !== holdTicket) return;
       if (!walletKey || !sameAddr(walletKey, key)) return;
       if (!hall.contract || hall.chain !== chain || !sameAddr(hall.contract, contract)) return;
-      n = parseInt(hex, 16);
-      heldBalance = inBar() && n >= 0 ? n : 0;
       arrows();
-      if (!(n > 0)) {
-        hideHeld();
-        return;
-      }
       heldBtn.hidden = false;
     }).catch(function () {
       if (mine !== holdTicket) return;
-      heldBalance = 0;
       arrows();
-      hideHeld();
     });
   }
 
@@ -1247,17 +1235,6 @@
     var h = hex.replace(/^0x/, "");
     if (h.length < 40) return "";
     return "0x" + h.slice(h.length - 40);
-  }
-
-  function decodeString(hex) {
-    var h = hex.replace(/^0x/, "");
-    var len = parseInt(h.slice(64, 128), 16);
-    var data = h.slice(128, 128 + len * 2);
-    var s = "";
-    var i;
-    if (!(len >= 0)) return "";
-    for (i = 0; i < data.length; i += 2) s += String.fromCharCode(parseInt(data.slice(i, i + 2), 16));
-    return s;
   }
 
   /* The plate is Plate.paint. tokenURI would run the on-chain painter. */
@@ -1310,12 +1287,11 @@
     return String(q.contract).toLowerCase() === String(hall.contract).toLowerCase();
   }
 
-  /* Quiet until a hall is in the bar, or LISTED / HELD has more than one print. */
+  /* On when this plate has a contract and an id. They walk the lit mode's set. */
   function arrows() {
-    var on = false;
-    if (lit === "listed") on = listedCount > 1;
-    else if (lit === "held") on = heldBalance > 1;
-    else if (lit === "live" || lit === "dated") on = inBar();
+    var on = lit !== "search" && index >= 1 && !!(hall && hall.contract);
+    prevBtn.hidden = !on;
+    nextBtn.hidden = !on;
     prevBtn.setAttribute("aria-disabled", on ? "false" : "true");
     nextBtn.setAttribute("aria-disabled", on ? "false" : "true");
   }
@@ -1413,7 +1389,7 @@
       if (id !== ticket) return;
       index = 0;
       searchKey = checksum(raw);
-      mark("live");
+      mark(searchBack ? "search" : "live");
       show(bytes, nonce, raw, paceBytes || bytes);
       if (postcard !== false) {
         writeUrl({
@@ -1579,7 +1555,6 @@
           setPaint("open");
           index = idn;
           show(Plate.parseAddress(token.minter), nonce, token.minter, word(idn));
-          if (!pageStill) setNote(NO_PRINT);
           readAsk(chain, contract, idn, mine);
           readRole(chain, contract, idn, mine);
           writeUrl({ chain: chain, contract: contract, id: idn, mode: "live", key: token.minter });
@@ -1621,14 +1596,6 @@
     return { chain: "mainnet", contract: MAINNET_STILL, nextId: 0, known: false };
   }
 
-  function rememberDoor(chain, contract, nextId) {
-    if (!MAINNET_STILL) return;
-    if (chain === "mainnet" && contract.toLowerCase() === MAINNET_STILL.toLowerCase()) {
-      doorNext = nextId >= 1 ? nextId : 0;
-      doorKnown = true;
-    }
-  }
-
   function route(q) {
     var key = q.key || ((q.hash.slice(0, 2) === "0x" || q.hash.slice(0, 2) === "0X") ? q.hash : "");
     var contract = q.contract;
@@ -1654,22 +1621,10 @@
     resumeKey();
     pageStill = !!q.still;
     snow();
+    setNote(LOADING);
     hall = hallFrom(q);
     if (isFour(hall.contract)) fourBind("");
-    if (!MAINNET_STILL || isFour(hall.contract)) {
-      doorNext = 0;
-      doorKnown = true;
-    } else if (!(hall.contract && hall.chain === "mainnet" && hall.contract.toLowerCase() === MAINNET_STILL.toLowerCase())) {
-      readNextId("mainnet", MAINNET_STILL).then(function (n) {
-        doorNext = n >= 1 ? n : 0;
-        doorKnown = true;
-        arrows();
-      }).catch(function () {
-        doorNext = 0;
-        doorKnown = true;
-        arrows();
-      });
-    }
+    arrows();
     if (!hall.contract) {
       hall.nextId = 0;
       hall.known = true;
@@ -1679,7 +1634,6 @@
       readNextId(hall.chain, hall.contract).then(function (n) {
         hall.nextId = n >= 1 ? n : 0;
         hall.known = true;
-        rememberDoor(hall.chain, hall.contract, hall.nextId);
         arrows();
         readHeld();
         settleHall(q);
@@ -1703,7 +1657,6 @@
     if (!value) {
       if (!walletKey) return;
       setWallet("");
-      heldBalance = 0;
       closeVault();
       closeList();
       closeReturn();
@@ -1717,7 +1670,7 @@
       return;
     }
     setWallet(value);
-    if (note.textContent === "connect") setNote("");
+    if (noteLine === "connect") setNote("");
     paintDoor();
     paintRole();
     readHeld();
@@ -1829,7 +1782,7 @@
       }
       hallProof = msg.proof;
       proofState = "have";
-      if (note.textContent === "this key is not in the hall") setNote("");
+      if (noteLine === "this key is not in the hall") setNote("");
       if (buyWait) {
         if (sameAddr(buyWait.addr, walletKey)) settleBuy(hallProof);
         else settleBuy(null);
@@ -1919,10 +1872,8 @@
 
   function step(dir) {
     var kind, start, scan;
-    if (prevBtn.getAttribute("aria-disabled") === "true") return;
-    if (!inBar() || !(hall.nextId >= 1)) return;
-    if (lit === "listed" && !(listedCount > 1)) return;
-    if (lit === "held" && !(heldBalance > 1)) return;
+    if (prevBtn.hidden || prevBtn.getAttribute("aria-disabled") === "true") return;
+    if (!inBar() || !(hall.nextId >= 1) || lit === "search") return;
     kind = (lit === "listed" || lit === "held" || lit === "dated") ? lit : "";
     if (!(index >= 1 && index <= hall.nextId)) start = dir < 0 ? hall.nextId : 1;
     else {
@@ -1950,7 +1901,7 @@
     var was = lit;
     pageStill = false;
     light("live");
-    if (note.textContent === NO_PRINT || note.textContent === NO_LISTED || note.textContent === NO_HELD) setNote("");
+    if (emptyLine(noteLine)) setNote("");
     if (was === "dated") {
       if (onToken()) openLiveToken(hall.chain, hall.contract, index);
       else if (heldBytes) arm(heldBytes, heldNonce, heldPace);
@@ -1969,7 +1920,6 @@
       setNote("connect");
       return;
     }
-    if (kind === "listed") listedCount = 0;
     light(kind);
     if (!inBar() || !(hall.nextId >= 1)) {
       setNote(empty);
@@ -1987,21 +1937,52 @@
         setNote(empty);
         return;
       }
-      if (kind === "listed") {
-        scanIds("listed", id + 1, 1, false).then(function (second) {
-          if (lit !== "listed") return;
-          listedCount = second >= 1 ? 2 : 1;
-          arrows();
-        });
-      }
       openLiveToken(hall.chain, hall.contract, id);
+    });
+  }
+
+  /* The parked print's owner is the vault. Show it once that read returns. */
+  function showHeld(role) {
+    var scan;
+    light("held");
+    if (!walletKey) {
+      setNote("connect");
+      return;
+    }
+    if (!inBar() || !(hall.nextId >= 1)) {
+      setNote(NO_HELD);
+      return;
+    }
+    setNote(SCAN_HELD);
+    scan = walkTicket;
+    scanIds("held", 1, 1, scan).then(function (found) {
+      if (scan !== walkTicket || lit !== "held") return;
+      if (found < 0) {
+        setNote(WEATHER);
+        return;
+      }
+      return call(role.chain, role.contract, SEL.ownerOf, role.id).then(function (hex) {
+        if (scan !== walkTicket || lit !== "held") return;
+        if (sameAddr(addressOf(hex), role.vault)) {
+          openLiveToken(role.chain, role.contract, role.id);
+          return;
+        }
+        if (found >= 1) {
+          openLiveToken(role.chain, role.contract, found);
+          return;
+        }
+        setNote(NO_HELD);
+      });
+    }).catch(function () {
+      if (scan !== walkTicket || lit !== "held") return;
+      setNote(WEATHER);
     });
   }
 
   function enterDated() {
     var scan;
     var here;
-    if (note.textContent === WEATHER) {
+    if (noteLine === WEATHER) {
       returnLive();
       return;
     }
@@ -2019,6 +2000,10 @@
     here = index;
     scanIds("dated", 1, 1, scan).then(function (id) {
       if (scan !== walkTicket || lit !== "dated") return;
+      if (id < 0) {
+        setNote(WEATHER);
+        return;
+      }
       if (!(id >= 1)) {
         disarm();
         setNote(NO_PRINT);
@@ -2038,12 +2023,12 @@
   liveBtn.addEventListener("click", function () {
     var typed;
     pageStill = false;
-    if (note.textContent === WEATHER) {
+    if (noteLine === WEATHER) {
       returnLive();
       return;
     }
     light("live");
-    if (note.textContent === NO_PRINT || note.textContent === NO_LISTED || note.textContent === NO_HELD) setNote("");
+    if (emptyLine(noteLine)) setNote("");
     if (onToken()) {
       openLiveToken(hall.chain, hall.contract, index);
       return;
@@ -2157,8 +2142,9 @@
       });
     }).then(function () {
       dateBtn.setAttribute("aria-pressed", "false");
-      setNote("");
-      if (index === role.id) readRole(role.chain, role.contract, role.id, ticket);
+      delete cache[role.chain + ":" + role.contract.toLowerCase() + ":" + role.id];
+      light("dated");
+      openDated(role.chain, role.contract, String(role.id));
     }).catch(function (err) {
       dateBtn.setAttribute("aria-pressed", "false");
       noteWhy(err);
@@ -2176,10 +2162,10 @@
       closeVault();
       return;
     }
-    closeList(true);
+    closeList();
     closeReturn();
     hideSearch();
-    tuckListedLine();
+    if (emptyLine(noteLine)) setNote("");
     parkBtn.setAttribute("aria-pressed", "true");
     vaultRow.hidden = false;
     vaultField.value = "";
@@ -2428,9 +2414,8 @@
     }).then(function () {
       confirmBtn.setAttribute("aria-pressed", "false");
       closeVault();
-      setNote("mailbox named");
-      if (index === role.id) readRole(role.chain, role.contract, role.id, ticket);
       readHeld();
+      showHeld(role);
     }).catch(function (err) {
       confirmBtn.setAttribute("aria-pressed", "false");
       if (err && err.message === "plate") return;
@@ -2493,7 +2478,7 @@
       listConfirm.setAttribute("aria-pressed", "false");
       if (mine !== listTicket || !parts) return;
       closeList();
-      setNote("listed");
+      setNote(weiText("0x" + word) || "listed");
       if (index === role.id) {
         readRole(role.chain, role.contract, role.id, ticket);
         readAsk(role.chain, role.contract, role.id, ticket);
@@ -2602,10 +2587,10 @@
       closeList();
       return;
     }
-    closeVault(true);
+    closeVault();
     closeReturn();
     hideSearch();
-    tuckListedLine();
+    if (emptyLine(noteLine)) setNote("");
     listBtn.setAttribute("aria-pressed", "true");
     listRow.hidden = false;
     listPrice.value = "";
@@ -2619,7 +2604,7 @@
   });
   vaultField.addEventListener("input", function () {
     vaultSure = "";
-    if (note.textContent.indexOf("a wrong vault is permanent") !== -1) setNote("");
+    if (noteLine.indexOf("a wrong vault is permanent") !== -1) setNote("");
   });
   vaultField.addEventListener("keydown", function (event) {
     if (event.key !== "Enter") return;
@@ -2628,36 +2613,29 @@
   });
 
   searchBtn.addEventListener("click", function () {
-    if (!field.hidden) {
-      closeSearch();
-      if (lit === "search") mark("live");
-      restoreTuckedLine();
+    if (!field.hidden || lit === "search") {
+      endSearch();
       return;
     }
-    closeList(true);
-    closeVault(true);
-    tuckListedLine();
-    if (isScanNote(note.textContent)) setNote("");
-    walkTicket += 1;
-    lit = "search";
-    listedOn = false;
-    heldOn = false;
-    liveBtn.setAttribute("aria-pressed", "false");
-    datedBtn.setAttribute("aria-pressed", "false");
-    listedBtn.setAttribute("aria-pressed", "false");
-    heldBtn.setAttribute("aria-pressed", "false");
-    searchBtn.setAttribute("aria-pressed", "true");
-    if (mode === "dated") {
-      setPaint("open");
-      if (heldBytes) arm(heldBytes, heldNonce, heldPace);
+    if (!searchBack) {
+      searchBack = {
+        index: index,
+        chain: hall && hall.chain,
+        contract: hall && hall.contract,
+        key: shownKey || searchKey || ""
+      };
     }
+    closeList();
+    closeVault();
+    walkTicket += 1;
+    if (emptyLine(noteLine) || isScanNote(noteLine)) setNote("");
+    mark("search");
+    if (heldBytes && mode !== "dated") arm(heldBytes, heldNonce, heldPace);
     field.hidden = false;
     veilSearch();
     field.value = shownKey || EXAMPLE;
     field.focus();
     field.select();
-    arrows();
-    placeRows();
   });
 
   prevBtn.addEventListener("click", function () { step(-1); });
@@ -2706,7 +2684,6 @@
       if (!next) {
         if (walletKey) {
           setWallet("");
-          heldBalance = 0;
           closeVault();
           closeList();
           closeReturn();
