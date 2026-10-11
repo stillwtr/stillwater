@@ -265,6 +265,22 @@
     if (lit === "search") mark("live");
   }
 
+  /* SEARCH keeps the mode row and its own field. List and park wait.
+     The verb row's grid rule would ignore hidden, so the row is taken out. */
+  function veilSearch() {
+    if (field.hidden) {
+      roleRow.hidden = false;
+      roleRow.style.display = "";
+      return;
+    }
+    listBtn.hidden = true;
+    parkBtn.hidden = true;
+    closeList(true);
+    closeVault(true);
+    roleRow.hidden = true;
+    roleRow.style.display = "none";
+  }
+
   function actionNote() {
     var text = note.textContent;
     return text === "listed" || text === "mailbox named"
@@ -1018,6 +1034,7 @@
       closeList();
       closeReturn();
       buyBtn.hidden = true;
+      veilSearch();
       return;
     }
     seller = sameAddr(walletKey, plateRole.title);
@@ -1045,6 +1062,7 @@
     dateBtn.hidden = !showDate;
     if (titleHere || returns || showCancel || showDate) buyBtn.hidden = true;
     paintBuy();
+    veilSearch();
   }
 
   function paintDoor() {
@@ -2618,6 +2636,7 @@
       if (heldBytes) arm(heldBytes, heldNonce, heldPace);
     }
     field.hidden = false;
+    veilSearch();
     field.value = shownKey || EXAMPLE;
     field.focus();
     field.select();
