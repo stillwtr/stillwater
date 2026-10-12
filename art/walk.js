@@ -305,6 +305,7 @@
     if (which !== "dated" && noteLine === NO_PRINT) setNote("");
     if (which !== "listed" && noteLine === NO_LISTED) setNote("");
     if (which !== "held" && noteLine === NO_HELD) setNote("");
+    if (which !== lit) closeFields();
     mark(which);
     return back;
   }
@@ -1012,6 +1013,13 @@
     returnBtn.setAttribute("aria-pressed", "false");
     returnRow.hidden = true;
     returnField.value = "";
+  }
+
+  /* A major mode owns the row. Park, list, and return close when it changes. */
+  function closeFields() {
+    closeVault();
+    closeList();
+    closeReturn();
   }
 
   function hideRole() {
@@ -2625,8 +2633,7 @@
         key: shownKey || searchKey || ""
       };
     }
-    closeList();
-    closeVault();
+    closeFields();
     walkTicket += 1;
     if (emptyLine(noteLine) || isScanNote(noteLine)) setNote("");
     mark("search");
