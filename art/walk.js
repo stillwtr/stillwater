@@ -46,6 +46,8 @@
   var NO_HELD = "there is no held print";
   var SCAN_LISTED = "scanning for listed prints";
   var SCAN_HELD = "scanning for held prints";
+  var SCAN_DATED = "scanning for dated prints";
+  var SCAN_LIVE = "Loading Live prints";
   var LOADING = "Loading";
   var WEATHER = "the chain did not answer";
   var UNREAD = "the last transaction could not be read";
@@ -284,7 +286,11 @@
   }
 
   function isScanNote(text) {
-    return text === SCAN_LISTED || text === SCAN_HELD;
+    return text === SCAN_LISTED || text === SCAN_HELD || text === SCAN_DATED || text === SCAN_LIVE;
+  }
+
+  function isDotNote(text) {
+    return isScanNote(text) || text === LOADING;
   }
 
   function emptyLine(text) {
@@ -305,8 +311,9 @@
     if (which !== "dated" && noteLine === NO_PRINT) setNote("");
     if (which !== "listed" && noteLine === NO_LISTED) setNote("");
     if (which !== "held" && noteLine === NO_HELD) setNote("");
-    if (which !== lit) closeFields();
+    var leave = which !== lit;
     mark(which);
+    if (leave) closeFields();
     return back;
   }
 
@@ -544,7 +551,7 @@
 
   function setNote(text) {
     noteLine = text || "";
-    if (noteLine === SCAN_LISTED || noteLine === SCAN_HELD || noteLine === LOADING) {
+    if (isDotNote(noteLine)) {
       armDots(noteLine);
       note.removeAttribute("title");
       return;
@@ -1393,6 +1400,7 @@
       badKey();
       return;
     }
+    if (painted && lit === "live") setNote(SCAN_LIVE);
     liveCount(chain, raw).then(function (nonce) {
       if (id !== ticket) return;
       index = 0;
@@ -1513,6 +1521,7 @@
     var mine = ++ticket;
     walkTicket += 1;
     if (!(idn >= 1) || !contract) return;
+    if (painted && lit === "live") setNote(SCAN_LIVE);
     readCached(chain, contract, idn).then(function (token) {
       if (mine !== ticket) return;
       if (token.block !== 0) return openDatedLive(chain, contract, idn, token, mine);
@@ -2004,6 +2013,7 @@
       setNote(NO_PRINT);
       return;
     }
+    setNote(SCAN_DATED);
     scan = walkTicket;
     here = index;
     scanIds("dated", 1, 1, scan).then(function (id) {
