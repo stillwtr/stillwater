@@ -6,30 +6,28 @@ import {console2} from "forge-std/console2.sol";
 import {Stillwater} from "../src/Stillwater.sol";
 import {SepoliaRoot} from "./SepoliaRoot.sol";
 
-/// Sepolia only. Passes the temporary three-key root. The cleaned hall root is not deployed here.
+/// Sepolia only. Passes the three-key test root. The walker root is not deployed here.
 contract SepoliaDeploy is Script {
-    bytes32 internal constant WALKER = 0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634;
+    bytes32 internal constant WALKER = 0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3;
+    string internal constant WALK = "https://stillwtr.github.io/stillwater/art/walk.html";
 
     function run() external {
         require(block.chainid == 11155111, "sepolia");
-        bytes32 root = SepoliaRoot.root();
-        require(root != WALKER, "temp root");
-        bytes32[] memory proof = SepoliaRoot.proofTreasury();
+        address extra = vm.envAddress("SEPOLIA_EXTRA");
+        bytes32 root = SepoliaRoot.root3(SepoliaRoot.TREASURY, SepoliaRoot.OTHER, extra);
+        require(root == SepoliaRoot.TINY, "tiny");
+        require(root != WALKER, "not the walker root");
         uint256 pk = _pk();
         require(vm.addr(pk) == SepoliaRoot.TREASURY, "deployer");
 
-        console2.log("proof0");
-        console2.logBytes32(proof[0]);
-        console2.log("proof1");
-        console2.logBytes32(proof[1]);
-
         vm.startBroadcast(pk);
-        Stillwater still = new Stillwater(root, SepoliaRoot.TREASURY, "Stillwater", "STILL", "https://walk.test/");
+        Stillwater still = new Stillwater(root, SepoliaRoot.TREASURY, "Stillwater", "STILL", WALK);
         vm.stopBroadcast();
 
         require(still.merkleRoot() == root, "merkleRoot");
         require(still.price() == 0, "price");
         require(still.treasury() == SepoliaRoot.TREASURY, "treasury");
+        require(keccak256(bytes(still.walkBase())) == keccak256(bytes(WALK)), "walk");
         console2.log("SEPOLIA_OK");
         console2.log("still", address(still));
         console2.logBytes32(root);

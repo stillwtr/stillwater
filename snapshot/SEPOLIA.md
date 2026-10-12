@@ -1,24 +1,36 @@
 # Sepolia
 
-This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, and cancel.
+This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The real root is the mainnet root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument.
 
-- Stillwater: `0xc81148AA098723d4CbfaAd5517032D4fdFd87662`
+- Stillwater: `0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29`
+- Deploy tx: `0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f`
+- Block: 11899829
+- Gas used: 19252073
+- Status: success
+- Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
+- Tiny root: `0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38`
+- walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
+- solc: 0.8.37
+- viaIR: false
+
+https://sepolia.etherscan.io/address/0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29
+
+https://sepolia.etherscan.io/tx/0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f
+
+The tiny root is the previous two test keys plus one further test key. The Walk points here.
+
+## Previous hall
+
+`0xc81148AA098723d4CbfaAd5517032D4fdFd87662` is the previous Walk hall. Same bytecode shape, price 0, same treasury. Its tiny root was `0x1df0d632551c27e813e322925bf8391506813d54574df108eab5bd63f3a4d384`. Print 1 below was minted there. The Walk no longer points here.
+
 - Deploy tx: `0x5d6ae64e48ab6fbf1a9ff31ed78ec71f99ef5e2cfc1b5b421ec8b409a1fa9e4e`
 - Block: 11893987
 - Gas used: 19252085
 - Status: success
-- Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
-- Tiny root: `0x1df0d632551c27e813e322925bf8391506813d54574df108eab5bd63f3a4d384`
-- walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
-- solc: 0.8.37
-- viaIR: false
-- nextId: 1
 
 https://sepolia.etherscan.io/address/0xc81148AA098723d4CbfaAd5517032D4fdFd87662
 
 https://sepolia.etherscan.io/tx/0x5d6ae64e48ab6fbf1a9ff31ed78ec71f99ef5e2cfc1b5b421ec8b409a1fa9e4e
-
-The walker root `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634` was not the constructor argument.
 
 ## Print 1
 
@@ -33,12 +45,12 @@ https://sepolia.etherscan.io/tx/0x42e8a308b155b592361f5d7b1e5541453cb9d1ada9d799
 
 ## Two keys
 
-Both are on the tiny root. A stranger is any address not on this root. The vault does not need a proof. Mainnet walker proofs do not apply to this root.
+Both are on the previous hall's tiny root. The new hall's root also includes them. A stranger is any address not on that hall's root. The vault does not need a proof. Mainnet walker proofs do not apply to either test root.
 
 - Tree key A / treasury / deployer: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - Tree key B: `0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA`
 
-The leaf is `keccak256(bytes.concat(keccak256(abi.encode(address))))`. The root is the sorted pair of those two leaves.
+The leaf is `keccak256(bytes.concat(keccak256(abi.encode(address))))`. The two proofs below rebuild the previous hall's two-key root.
 
 Proof for A, the leaf of B: `0x0571727ce22c0cd0d97f0f4767730433a249a3ac8c78ebfce10c495f44796afc`
 

@@ -22,6 +22,7 @@ Window: 1 × 365 days, ending at the snapshot block. The year length is 365 × 8
 - Verse Works `0xec43e92046c1527586dfaf02031622c30af9a1d6` Transfer logs 23455765 … 26070219
 - Verse Works v0.3.0 `0xd1240d3f8e7ccdfc5592f094beff4a51efaf310b` Transfer logs 23455765 … 26070219
 - Transient Labs factory `0x7c24805454f7972d36bee9d139bd93423aa29f3f` ContractDeployed from block 15500000 through 26070219. Clones kept when cType is ERC721TL, ERC1155TL, ERC7160TL, or ERC7160TLEditions and the implementation is a deployed_contract in tl-creator-contracts deployments.json (TRACE and rendering contracts left out). ERC-721 clones use Transfer. ERC1155TL and ERC7160TLEditions also use TransferSingle and TransferBatch. Indexed operator, from, and to are kept.
+- LondonTokenFactory `0x0fd8989ddf25d8504f22a9dee6865216760ffefb` NewCollection from block 19219006 through 26070219. 558 clones, all EIP-1167 proxies of the implementation stored on the factory. ERC-721 Transfer on those clones uses 23455765 … 26070219. Only from and to are kept.
 - Verse Works contracts are ERC-1155. Their TransferSingle and TransferBatch logs use the same window. The ERC-721 Transfer topic does not match those events.
 
 ## Walkers
@@ -32,7 +33,7 @@ Leaf and pair stay the ones the tests use. allowlist.json is unchanged.
 
 ### Deny list
 
-Hall contracts are the seven cores in the section above, the Transient Labs factory, every implementation in indexer/snapshot.js, and every clone in snapshot/.tl-clones.json.
+Hall contracts are the seven cores in the section above, the Transient Labs factory, LondonTokenFactory, every implementation in indexer/snapshot.js, every clone in snapshot/.tl-clones.json, the LondonTokenBase implementation, and every clone in snapshot/.london-clones-kept.json.
 
 Official Art Blocks minters, from Art Blocks MINTER_SUITE.md and deployments/minters/mainnet/DEPLOYMENTS.md:
 
@@ -137,11 +138,43 @@ Farm-ish desks are off the list: at least 10 keys, and a majority of first payme
 - keys after: 21501
 - root: `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
 
+## LondonTokenFactory
+
+The factory is pinned. Its 558 LondonTokenBase clones were read on the original window, block 23455765 through 26070219. 0 clones were rejected. Parties on those transfers: 6769. Keys already on the previous root are unchanged by that overlap.
+
+Nonce 0 is dropped. The deny list is the one already in use, plus this factory, its implementation, and these clones. Farm-ish desks and the named 453-key factory stay off. A new desk is off on the same rule: at least 10 keys, and a majority of first payments inside one 24-hour window. The mainnet script passes this root. Mainnet is not deployed.
+
+- keys before: 21501
+- keys after: 25236
+- root: `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`
+
+### Delta
+
+Compared with `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`. Counts only.
+
+| | Before | After |
+| --- | ---: | ---: |
+| Unique keys | 21501 | 25236 |
+| New keys only on LondonTokenBase clones | 0 | 3746 |
+| Nonce 0–4 | 3863 | 4779 |
+| Nonce 5–8 | 9870 | 11828 |
+| Nonce 9–12 | 7597 | 8452 |
+| Nonce 13+ | 171 | 177 |
+| Water 0% | 2685 | 3237 |
+| Water fleck | 11917 | 14365 |
+| Water pond | 6899 | 7634 |
+| Clusters | 17378 | 19975 |
+| Farm-ish clusters | 0 | 0 |
+
+London-only keys seen on the clones and not on the previous hall list: 4008. Nonce 0 dropped 107. The deny list dropped 0. Desks already off, or newly farm-ish, dropped 155. Previous-root keys removed because their desk became farm-ish: 11. Parents added because they walked a hall: 0.
+
 ## Deploy wiring
 
-Constructor argument `merkleRoot` is this root. One immutable. No setter. No second root. Leaf unchanged. Sepolia was not redeployed.
+Constructor argument `merkleRoot` is this root. One immutable. No setter. No second root. Leaf unchanged. Mainnet is not deployed.
 
-`0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
+`0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`
+
+Sepolia `0x8DE89DFe42d1d5F5FD23910B98f8f66239bD5124` uses a two-key root, not this walker root. Mainnet walker proofs do not apply there. `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34` is stale. Its bytecode is not this hall.
 
 - solc: 0.8.37
 - viaIR: false

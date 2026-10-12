@@ -8,15 +8,17 @@ The 453-key factory did not trip the one-day rule (busiest day 20 keys across 85
 
 A parent funder is added only when that parent walked a qualifying hall in the same year and is not nonce 0. A factory that never walked is not added.
 
-- keys before: 22200
-- farm-ish clusters: 12
-- keys in farm-ish clusters: 247
-- factory keys: 453
-- parents already on the list: 5
-- parents restored: 1
-- parents not added: 7
-- keys dropped: 699
-- keys after: 21501
-- root: `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`
+The block above is the previous root. LondonTokenFactory is pinned on the same window. The counts below are the rebuilt list. The mainnet script passes that root. Mainnet is not deployed.
+
+- keys before: 21501
+- farm-ish clusters before: 0
+- clusters before: 17378
+- keys only on LondonTokenBase clones: 3746
+- previous-root keys removed: 11
+- parents added: 0
+- keys after: 25236
+- clusters after: 19975
+- farm-ish clusters after: 0
+- root: `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`
 
 Leaf: keccak256(bytes.concat(keccak256(abi.encode(address)))).

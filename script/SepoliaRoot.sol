@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.37;
 
-/// Temporary Sepolia list. Three keys. Not the walker root.
+/// Sepolia list. The two named test keys, plus one further key supplied at deploy.
+/// Not the walker root.
 library SepoliaRoot {
     address internal constant TREASURY = 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D;
-    address internal constant KEY1 = 0xd934CC70B1b06256581527a534285f5bd6A7eDc7;
-    address internal constant SPARE = 0x00000000000000000000000000000000000A11cE;
+    address internal constant OTHER = 0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA;
+    /// Three-key test root. The third key is not stored here.
+    bytes32 internal constant TINY = 0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38;
 
     function leaf(address key) internal pure returns (bytes32) {
         return keccak256(bytes.concat(keccak256(abi.encode(key))));
@@ -15,14 +17,45 @@ library SepoliaRoot {
         return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
     }
 
-    /// Sorted spare, treasury, KEY1. The last leaf is lifted.
+    /// The two leaves, sorted inside the pair.
     function root() internal pure returns (bytes32) {
-        return pair(pair(leaf(SPARE), leaf(TREASURY)), leaf(KEY1));
+        return pair(leaf(TREASURY), leaf(OTHER));
+    }
+
+    function sorted(address a, address b, address c) internal pure returns (address x, address y, address z) {
+        x = a;
+        y = b;
+        z = c;
+        if (uint160(x) > uint160(y)) (x, y) = (y, x);
+        if (uint160(y) > uint160(z)) (y, z) = (z, y);
+        if (uint160(x) > uint160(y)) (x, y) = (y, x);
+    }
+
+    function root3(address a, address b, address c) internal pure returns (bytes32) {
+        (address x, address y, address z) = sorted(a, b, c);
+        return pair(pair(leaf(x), leaf(y)), leaf(z));
+    }
+
+    function proofOf(address who, address a, address b, address c) internal pure returns (bytes32[] memory proof) {
+        (address x, address y, address z) = sorted(a, b, c);
+        bytes32 left = pair(leaf(x), leaf(y));
+        if (who == z) {
+            proof = new bytes32[](1);
+            proof[0] = left;
+            return proof;
+        }
+        proof = new bytes32[](2);
+        proof[0] = who == x ? leaf(y) : leaf(x);
+        proof[1] = leaf(z);
     }
 
     function proofTreasury() internal pure returns (bytes32[] memory proof) {
-        proof = new bytes32[](2);
-        proof[0] = leaf(SPARE);
-        proof[1] = leaf(KEY1);
+        proof = new bytes32[](1);
+        proof[0] = leaf(OTHER);
+    }
+
+    function proofOther() internal pure returns (bytes32[] memory proof) {
+        proof = new bytes32[](1);
+        proof[0] = leaf(TREASURY);
     }
 }
