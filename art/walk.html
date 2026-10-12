@@ -227,6 +227,15 @@
       transition: opacity 280ms linear;
     }
     .note.fade { opacity: 0; }
+    /* The park warning has to stay on screen with the box. The plate stays put. */
+    body:has(#vault-row:not([hidden])) .note {
+      padding: 0.05rem 1rem 0.08rem;
+      min-height: 0;
+    }
+    body:has(#vault-row:not([hidden])) .threshold {
+      padding: 0.2rem 1rem 0.05rem;
+      gap: 0.22rem;
+    }
     @media (max-width: 480px) {
       .court {
         flex: 0 0 auto;

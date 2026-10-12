@@ -52,6 +52,8 @@
   var WEATHER = "the chain did not answer";
   var UNREAD = "the last transaction could not be read";
   var HALL_SHUT = "the hall is not open";
+  var HALL_OUT = "this key is not in the hall";
+  var MAIL_NOTE = "setting mailbox";
 
   var canvas = document.getElementById("pool");
   var note = document.getElementById("note");
@@ -124,6 +126,7 @@
   var askGen = 0;
   var plateAsk = null;
   var walletKey = "";
+  var hallWatch = false;
   var liveAccounts = null;
   var didAsk = false;
   var hallWorker = null;
@@ -322,7 +325,7 @@
   }
 
   function isDotNote(text) {
-    return isScanNote(text) || text === LOADING;
+    return isScanNote(text) || text === LOADING || text === MAIL_NOTE;
   }
 
   function emptyLine(text) {
@@ -1190,12 +1193,14 @@
   }
 
   function clearStaleNote() {
-    if (noteLine === NO_HELD || noteLine === NO_LISTED || noteLine === "mailbox named" || isScanNote(noteLine)) setNote("");
+    if (noteLine === NO_HELD || noteLine === NO_LISTED || noteLine === "mailbox named" || noteLine === HALL_OUT || isScanNote(noteLine)) setNote("");
   }
 
   function setWallet(value) {
     var next = value || "";
     var changed = next.toLowerCase() !== (walletKey || "").toLowerCase();
+    var switching = changed && !!walletKey && !!next;
+    if (switching || (changed && noteLine === HALL_OUT)) hallWatch = true;
     walletKey = next;
     StillDoor.write(walletKey);
     if (next) StillDoor.off(false);
@@ -1210,6 +1215,7 @@
     if (!walletKey) {
       hallProof = null;
       proofState = "";
+      hallWatch = false;
       settleBuy(null);
       return;
     }
@@ -1836,6 +1842,57 @@
     resumeKey();
   });
 
+  var TEST_KEYS = [
+    "0x08d97e624214f4ca5283b47c11030ab71bc7304d",
+    "0xd934cc70b1b06256581527a534285f5bd6a7edc7",
+    "0xf54fe7f5f0f8d13ce9b685b8ad167b466b637f0d"
+  ];
+
+  function cmp32(a, b) {
+    var i;
+    for (i = 0; i < 32; i++) if (a[i] !== b[i]) return a[i] - b[i];
+    return 0;
+  }
+
+  function hashPair(a, b) {
+    var left = cmp32(a, b) < 0 ? a : b;
+    var right = left === a ? b : a;
+    var buf = new Uint8Array(64);
+    buf.set(left, 0);
+    buf.set(right, 32);
+    return PlateKeccak.keccak256(buf);
+  }
+
+  function leafOf(addr) {
+    var hex = addr.slice(2);
+    var raw = new Uint8Array(32);
+    var i;
+    for (i = 0; i < 20; i++) raw[12 + i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return PlateKeccak.keccak256(PlateKeccak.keccak256(raw));
+  }
+
+  /* The mint page uses this same three-key root for the Sepolia hall. */
+  function tinyRoot() {
+    var level = TEST_KEYS.map(leafOf);
+    var next;
+    var i;
+    var s = "";
+    var h;
+    while (level.length > 1) {
+      next = [];
+      for (i = 0; i < level.length; i += 2) {
+        if (i + 1 >= level.length) next.push(level[i]);
+        else next.push(hashPair(level[i], level[i + 1]));
+      }
+      level = next;
+    }
+    for (i = 0; i < level[0].length; i++) {
+      h = level[0][i].toString(16);
+      s += h.length === 1 ? "0" + h : h;
+    }
+    return "0x" + s;
+  }
+
   function askProof(addr) {
     var id;
     if (!hallWorker || !hallReady || !addr) return;
@@ -1874,18 +1931,35 @@
         if (proofState === "have" && hallProof) return;
         hallProof = null;
         proofState = "miss";
+        if (hallWatch && msg.addr && sameAddr(msg.addr, walletKey)) {
+          if (!noteLine || noteLine === HALL_OUT) setNote(HALL_OUT);
+        }
         if (buyWait) settleBuy(null);
         return;
       }
       hallProof = msg.proof;
       proofState = "have";
-      if (noteLine === "this key is not in the hall") setNote("");
+      hallWatch = false;
+      if (noteLine === HALL_OUT) setNote("");
       if (buyWait) {
         if (sameAddr(buyWait.addr, walletKey)) settleBuy(hallProof);
         else settleBuy(null);
       }
     };
-    hallWorker.postMessage({ start: true });
+    if (!hall.contract || isFour(hall.contract)) {
+      hallWorker.postMessage({ start: true });
+      return;
+    }
+    ethCall(hall.chain, hall.contract, "0x2eb4a7ab").then(function (root) {
+      var lock = String(root).toLowerCase();
+      if (lock === tinyRoot()) {
+        hallWorker.postMessage({ start: true, root: lock, list: TEST_KEYS.join("\n") });
+        return;
+      }
+      hallWorker.postMessage({ start: true, root: lock });
+    }).catch(function () {
+      hallWorker.postMessage({ start: true });
+    });
   }
 
   /* buy(uint256,bytes32[]): id, then the proof array at word offset 64. */
@@ -2426,9 +2500,16 @@
         if (!from || (ask.title && sameAddr(from, ask.title))) throw new Error("key");
         return takeProof(from).then(function (proof) {
           var data;
-          if (!proof) throw why("this key is not in the hall");
+          if (!sameAddr(from, walletKey)) throw new Error("plate");
+          if (!proof) {
+            hallWatch = true;
+            throw why(HALL_OUT);
+          }
           data = encodeBuy(ask.id, proof);
-          if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) throw why("this key is not in the hall");
+          if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) {
+            hallWatch = true;
+            throw why(HALL_OUT);
+          }
           return castTx(ask.chain, {
             from: from,
             to: ask.contract,
@@ -2449,6 +2530,8 @@
     }).catch(function (err) {
       buyBtn.setAttribute("aria-pressed", "false");
       paintBuy();
+      if (from && walletKey && !sameAddr(from, walletKey)) return;
+      if (err && err.message === "plate") return;
       noteWhy(err);
     });
   }
@@ -2507,7 +2590,7 @@
         to: role.contract,
         data: SEL.setMailbox + pad(role.id) + padAddr(role.vault)
       }).then(function (hash) {
-        if (hash !== "local") setNote("setting mailbox…");
+        if (hash !== "local") setNote(MAIL_NOTE);
         return settled(role.chain, hash);
       });
     }).then(function () {

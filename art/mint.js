@@ -82,11 +82,22 @@
     }
   }
 
+  var HALL_OUT = "this key is not in the hall";
+
   function setNote(text) {
     note.classList.remove("fade");
     note.textContent = text;
     if (text === "the chain did not answer") note.title = "nonce read failed";
     else note.removeAttribute("title");
+  }
+
+  function showHallOut(on) {
+    var current = note.textContent || "";
+    if (on) {
+      if (!current || current === HALL_OUT) setNote(HALL_OUT);
+      return;
+    }
+    if (current === HALL_OUT) setNote("");
   }
 
   function shortKey(text) {
@@ -722,7 +733,7 @@
       return;
     }
     if (!heldProof) {
-      setNote("this key is not in the hall");
+      setNote(HALL_OUT);
       return;
     }
     if (!STILL) {
@@ -730,6 +741,8 @@
       return;
     }
     if (priceWei == null) return;
+    var mine = ticket;
+    var who = key;
     var sent = {
       from: key,
       to: STILL,
@@ -753,6 +766,8 @@
       drawKey(key, ticket);
     }).catch(function (err) {
       mintBtn.setAttribute("aria-pressed", "false");
+      if (mine !== ticket) return;
+      if (!key || key.toLowerCase() !== String(who).toLowerCase()) return;
       if (err && err.code === 4001) setNote("declined");
       else if (err && err.message === "revert") setNote("not minted");
       else setNote("the chain did not answer");
@@ -829,9 +844,11 @@
       if (msg.miss || !msg.proof) {
         if (heldProof) return;
         heldProof = null;
+        showHallOut(true);
         return;
       }
       heldProof = msg.proof;
+      showHallOut(false);
       drawKey(pending.addr, pending.ticket);
     };
     if (!STILL) {
@@ -934,8 +951,12 @@
     eth.on("accountsChanged", function (accounts) {
       var next = accounts && accounts[0];
       if (!next) {
+        ticket += 1;
+        heldProof = null;
+        pending = null;
         if (key) showKey("");
         hidePlate();
+        showHallOut(false);
         return;
       }
       if (StillDoor.isOff() && !key) return;
@@ -1000,12 +1021,6 @@
       var addr = cleanAddr(checkInput.value);
       if (!addr) return;
       runCheck(addr);
-    });
-    checkInput.addEventListener("blur", function () {
-      if (checkInput.value.trim()) return;
-      if (!checkOut.hidden && checkOut.textContent) return;
-      checkRow.setAttribute("data-shut", "true");
-      checkRow.removeAttribute("data-open");
     });
     checkOut.addEventListener("click", function () {
       openCheck();
