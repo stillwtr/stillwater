@@ -422,6 +422,7 @@
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
+    if (checkRow) checkRow.hidden = false;
     clearAddress();
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
@@ -463,6 +464,7 @@
     hideGrid();
     disarm();
     pool.hidden = false;
+    if (checkRow) checkRow.hidden = true;
     showAddress();
     Plate.paint(canvas, bytes, nonce, 0);
     fit();
@@ -723,36 +725,40 @@
       openDoor();
       return;
     }
-    if (!key) {
-      setNote("connect a key");
-      return;
-    }
-    if (!proofsReady) return;
-    if (!proofsOk) {
-      setNote(listNote);
-      return;
-    }
-    if (!heldProof) {
-      setNote(HALL_OUT);
-      return;
-    }
     if (!STILL) {
       setNote("the door is not open");
       return;
     }
     if (priceWei == null) return;
     var mine = ticket;
-    var who = key;
-    var sent = {
-      from: key,
-      to: STILL,
-      data: encodeMint(heldProof),
-      chainId: CHAIN,
-      value: priceWei
-    };
     mintBtn.setAttribute("aria-pressed", "true");
     setNote("");
     ensureChain().then(function () {
+      return window.ethereum.request({ method: "eth_accounts" });
+    }).then(function (accounts) {
+      var selected = accounts && accounts[0] ? accounts[0] : "";
+      var sent;
+      if (!selected || StillDoor.isOff() || mine !== ticket) throw new Error("key");
+      if (!key || key.toLowerCase() !== selected.toLowerCase()) {
+        adopt(selected);
+        throw new Error("key");
+      }
+      if (!proofsReady) throw new Error("wait");
+      if (!proofsOk) {
+        setNote(listNote);
+        throw new Error("list");
+      }
+      if (!heldProof) {
+        setNote(HALL_OUT);
+        throw new Error("proof");
+      }
+      sent = {
+        from: selected,
+        to: STILL,
+        data: encodeMint(heldProof),
+        chainId: CHAIN,
+        value: priceWei
+      };
       return window.ethereum.request({
         method: "eth_sendTransaction",
         params: [sent]
@@ -766,8 +772,8 @@
       drawKey(key, ticket);
     }).catch(function (err) {
       mintBtn.setAttribute("aria-pressed", "false");
+      if (err && (err.message === "key" || err.message === "wait" || err.message === "list" || err.message === "proof")) return;
       if (mine !== ticket) return;
-      if (!key || key.toLowerCase() !== String(who).toLowerCase()) return;
       if (err && err.code === 4001) setNote("declined");
       else if (err && err.message === "revert") setNote("not minted");
       else setNote("the chain did not answer");
@@ -874,7 +880,7 @@
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) disarm();
   });
-  /* The Walk and this page share one key. A saved key the wallet does not list is cleared. */
+  /* The Walk and this page share one key. The provider's first account is that key. */
   function adopt(value) {
     if (!value) {
       if (!key) return;
@@ -909,58 +915,67 @@
 
   var didAsk = false;
 
-  /* A saved key is connected only when this wallet already lists it. */
+  function dropKey() {
+    if (!key) return;
+    ticket += 1;
+    heldProof = null;
+    pending = null;
+    showKey("");
+    hidePlate();
+    showHallOut(false);
+  }
+
+  /* A saved key is used only when it is the account the provider reports first. */
   function resume() {
     var saved = StillDoor.read();
     var eth = window.ethereum;
     if (!eth || !eth.request) {
-      if (saved) showKey("");
+      dropKey();
       return;
     }
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
-      var list = accounts || [];
-      var known = false;
-      var i;
-      for (i = 0; i < list.length; i++) {
-        if (saved && String(list[i]).toLowerCase() === saved.toLowerCase()) known = true;
-      }
-      if (saved && known) {
-        adopt(saved);
+      var selected = accounts && accounts[0] ? accounts[0] : "";
+      if (selected) {
+        if (StillDoor.isOff() && !key) return;
+        adopt(selected);
         return;
       }
-      if (saved && !known) {
-        showKey("");
-        if (didAsk) return;
-        didAsk = true;
-        eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
-          if (asked && asked[0]) adopt(asked[0]);
-        }).catch(function (err) {
-          if (err && err.code === 4001) setNote("declined");
-        });
-        return;
-      }
-      if (list[0] && !StillDoor.isOff()) adopt(list[0]);
+      dropKey();
+      if (!saved || StillDoor.isOff() || didAsk) return;
+      didAsk = true;
+      eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+        if (StillDoor.isOff()) return;
+        var now = asked && asked[0] ? asked[0] : "";
+        if (now) adopt(now);
+      }).catch(function (err) {
+        if (err && err.code === 4001) setNote("declined");
+      });
     }).catch(function () {
-      if (saved) showKey("");
+      dropKey();
     });
   }
 
   function watchKey() {
     var eth = window.ethereum;
     if (!eth || !eth.on) return;
-    eth.on("accountsChanged", function (accounts) {
-      var next = accounts && accounts[0];
-      if (!next) {
-        ticket += 1;
-        heldProof = null;
-        pending = null;
-        if (key) showKey("");
-        hidePlate();
-        showHallOut(false);
-        return;
-      }
-      if (StillDoor.isOff() && !key) return;
-      adopt(next);
+    eth.on("accountsChanged", function (reported) {
+      var hinted = reported && reported[0] ? reported[0] : "";
+      eth.request({ method: "eth_accounts" }).then(function (accounts) {
+        var selected = accounts && accounts[0] ? accounts[0] : "";
+        if (!selected) {
+          dropKey();
+          return;
+        }
+        if (StillDoor.isOff() && !key) return;
+        adopt(selected);
+      }).catch(function () {
+        if (!hinted) {
+          dropKey();
+          return;
+        }
+        if (StillDoor.isOff() && !key) return;
+        adopt(hinted);
+      });
     });
   }
 

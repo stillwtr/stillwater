@@ -1652,7 +1652,7 @@
       return;
     }
     readCached(chain, contract, idn).then(function (token) {
-      var tag = token.block !== 0 ? "0x" + token.block.toString(16) : "latest";
+      var night;
       if (mine !== ticket) return;
       if (token.block === 0) {
         return liveCount(chain, token.minter).then(function (nonce) {
@@ -1665,7 +1665,9 @@
           writeUrl({ chain: chain, contract: contract, id: idn, mode: "live", key: token.minter });
         });
       }
-      return datedCount(chain, token.minter, tag).then(function (nonce) {
+      /* End of the date block includes the shutter. The plate on screen was the block before. */
+      night = token.block - 1;
+      return datedCount(chain, token.minter, "0x" + night.toString(16)).then(function (nonce) {
         if (mine !== ticket) return;
         mark("dated");
         index = idn;
@@ -1772,7 +1774,7 @@
     resumeKey();
   }
 
-  /* A stored key stays connected across a new URL. An empty provider list does not clear it. */
+  /* The provider's first account is the key. An empty read drops a key this page was holding. */
   function adoptKey(value) {
     if (!value) {
       if (!walletKey) return;
@@ -1796,57 +1798,63 @@
     readHeld();
   }
 
-  /* A saved key is connected only when eth_accounts already lists it. */
-  function resumeKey() {
-    var saved = StillDoor.read();
-    var eth = window.ethereum;
-    if (!eth || !eth.request) {
-      liveAccounts = [];
-      if (saved) setWallet("");
+  function dropWallet() {
+    liveAccounts = [];
+    if (!walletKey && !StillDoor.read()) {
       paintDoor();
       paintRole();
       return;
     }
+    setWallet("");
+    closeVault();
+    closeList();
+    closeReturn();
+    paintDoor();
+    paintRole();
+    arrows();
+  }
+
+  /* A saved key is used only when it is the account the provider reports first. */
+  function resumeKey() {
+    var saved = StillDoor.read();
+    var eth = window.ethereum;
+    if (!eth || !eth.request) {
+      dropWallet();
+      return;
+    }
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
       var list = accounts || [];
-      var known = false;
-      var i;
+      var selected = list[0] || "";
       liveAccounts = list;
-      for (i = 0; i < list.length; i++) {
-        if (saved && sameAddr(list[i], saved)) known = true;
-      }
-      if (saved && known) {
-        adoptKey(saved);
+      if (selected) {
+        if (StillDoor.isOff() && !walletKey) {
+          paintDoor();
+          paintRole();
+          return;
+        }
+        adoptKey(selected);
         return;
       }
-      if (saved && !known) {
-        setWallet("");
-        paintDoor();
-        paintRole();
-        if (didAsk) return;
-        didAsk = true;
-        eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
-          liveAccounts = asked || [];
-          if (liveAccounts[0]) adoptKey(liveAccounts[0]);
-          else {
-            paintDoor();
-            paintRole();
-          }
-        }).catch(function (err) {
-          if (err && err.code === 4001) setNote("declined");
-        });
-        return;
-      }
-      if (list[0] && !StillDoor.isOff()) adoptKey(list[0]);
+      if (walletKey) dropWallet();
       else {
         paintDoor();
         paintRole();
       }
+      if (!saved || StillDoor.isOff() || didAsk) return;
+      didAsk = true;
+      eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+        if (StillDoor.isOff()) return;
+        liveAccounts = asked || [];
+        if (liveAccounts[0]) adoptKey(liveAccounts[0]);
+        else {
+          paintDoor();
+          paintRole();
+        }
+      }).catch(function (err) {
+        if (err && err.code === 4001) setNote("declined");
+      });
     }).catch(function () {
-      liveAccounts = [];
-      if (saved) setWallet("");
-      paintDoor();
-      paintRole();
+      dropWallet();
     });
   }
 
@@ -2395,28 +2403,17 @@
   }
 
   function keyFrom(contract) {
-    var eth, saved;
+    var eth;
     if (isFour(contract)) return Promise.resolve([walletKey]);
     eth = window.ethereum;
     if (!eth || !eth.request) {
       window.location.assign(DOOR);
       return Promise.reject(new Error("wallet"));
     }
-    saved = walletKey || StillDoor.read();
     return eth.request({ method: "eth_accounts" }).then(function (accounts) {
       var list = accounts || [];
-      var known = false;
-      var i;
       liveAccounts = list;
-      for (i = 0; i < list.length; i++) {
-        if (saved && sameAddr(list[i], saved)) known = true;
-      }
-      if (list.length && (known || !saved)) return list;
-      if (saved && !known) {
-        setWallet("");
-        paintDoor();
-        paintRole();
-      }
+      if (list[0]) return list;
       return eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
         liveAccounts = asked || [];
         return liveAccounts;
@@ -2470,14 +2467,24 @@
       return Promise.resolve("local");
     }
     if (!writeOpen(chain, tx.to)) return Promise.reject(why(HALL_SHUT));
-    sent = {
-      from: tx.from,
-      to: tx.to,
-      data: tx.data,
-      chainId: CHAIN_ID[chain]
-    };
-    if (tx.value) sent.value = tx.value;
+    if (!window.ethereum) return Promise.reject(new Error("key"));
     return ensureChain(chain).then(function () {
+      if (StillDoor.isOff()) return Promise.reject(new Error("key"));
+      return window.ethereum.request({ method: "eth_accounts" });
+    }).then(function (accounts) {
+      var selected = accounts && accounts[0] ? accounts[0] : "";
+      liveAccounts = accounts || [];
+      if (!selected || StillDoor.isOff() || !sameAddr(selected, tx.from)) {
+        if (selected && !StillDoor.isOff()) adoptKey(selected);
+        return Promise.reject(new Error("key"));
+      }
+      sent = {
+        from: selected,
+        to: tx.to,
+        data: tx.data,
+        chainId: CHAIN_ID[chain]
+      };
+      if (tx.value) sent.value = tx.value;
       return window.ethereum.request({
         method: "eth_sendTransaction",
         params: [sent]
@@ -2879,23 +2886,27 @@
   function watchKey() {
     var eth = window.ethereum;
     if (!eth || !eth.on) return;
-    eth.on("accountsChanged", function (accounts) {
-      var next = accounts && accounts[0];
-      liveAccounts = accounts || [];
-      if (!next) {
-        if (walletKey) {
-          setWallet("");
-          closeVault();
-          closeList();
-          closeReturn();
-          paintDoor();
-          paintRole();
-          arrows();
+    eth.on("accountsChanged", function (reported) {
+      var hinted = reported && reported[0] ? reported[0] : "";
+      eth.request({ method: "eth_accounts" }).then(function (accounts) {
+        var list = accounts || [];
+        var selected = list[0] || "";
+        liveAccounts = list;
+        if (!selected) {
+          if (walletKey) dropWallet();
+          return;
         }
-        return;
-      }
-      if (StillDoor.isOff() && !walletKey) return;
-      adoptKey(next);
+        if (StillDoor.isOff() && !walletKey) return;
+        adoptKey(selected);
+      }).catch(function () {
+        liveAccounts = reported || [];
+        if (!hinted) {
+          if (walletKey) dropWallet();
+          return;
+        }
+        if (StillDoor.isOff() && !walletKey) return;
+        adoptKey(hinted);
+      });
     });
   }
 

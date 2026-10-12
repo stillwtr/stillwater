@@ -12,7 +12,7 @@ This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, an
 - walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
 - solc: 0.8.37
 - viaIR: false
-- nextId: 0
+- nextId: 1
 
 https://sepolia.etherscan.io/address/0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465
 
@@ -24,15 +24,28 @@ The tiny root is three keys, sorted ascending. The Walk points here. The mint pa
 - `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`
 - `0xd934CC70B1b06256581527a534285f5bd6A7eDc7`
 
-Token 1 was not minted. This machine can sign only as the treasury, not as `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`. The mint below is the unsigned call for that key. Value is 0. It mints token 1. Date it after the mint is mined, with value 0.
+Token 1 is minted and dated. Minter, owner, title, and dated-by are the treasury. Mailbox is unset. The dated plate is the treasury's count in the block before the date block.
+
+- Mint tx: `0xaa5bfe3a1244c9b81711ddfa95bef6abb4dd69779c3846087ee6e9285d0b2d4b`
+- Mint block: 11901540
+- Mint nonce: 43
+- Date tx: `0x8367701e3e7d0fac138f7e20bface4710d6a831e4c1b809d7fcba2fa5b2ed452`
+- Date block: 11901569
+- Date nonce: 44
+- Count at block 11901568: 44
+- Count at block 11901569: 45
+- Seed: `c940268f5cbfab967dc0a3b1944dd81cdcc41409dab3ade00c648cdabe7ba85a`
+- Palette: Ice
+
+https://sepolia.etherscan.io/tx/0xaa5bfe3a1244c9b81711ddfa95bef6abb4dd69779c3846087ee6e9285d0b2d4b
+
+https://sepolia.etherscan.io/tx/0x8367701e3e7d0fac138f7e20bface4710d6a831e4c1b809d7fcba2fa5b2ed452
+
+This machine can sign only as the treasury. `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45` has not minted. The mint below is the unsigned call for that key. Value is 0. It mints the next print. `date(1)` has already been mined.
 
 Mint `mint(bytes32[])` from `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`:
 
 `0xb77a147b000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000021acc0a9178455c62bde6d9e5e788ac9ef51b7906f721329a05d06c1d1625ad13734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714`
-
-Then `date(1)`:
-
-`0x60c757ba0000000000000000000000000000000000000000000000000000000000000001`
 
 ## Previous test hall
 
