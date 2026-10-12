@@ -97,7 +97,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.55rem;
-      padding: 0.4rem 1rem 0.25rem;
+      padding: 0.4rem 1rem;
     }
     .words { display: flex; gap: 1.8rem; justify-content: center; }
     button {
@@ -154,7 +154,7 @@
     .check:focus-within {
       opacity: 1;
     }
-    .check input, .check span {
+    .check input, .check span, .check input::placeholder {
       font: inherit;
       color: var(--dim);
       background: transparent;
@@ -230,7 +230,7 @@
   </div>
   <p class="note" id="note"></p>
   <p class="check" id="check-row" data-shut="true">
-    <input id="check" autocomplete="off" spellcheck="false" aria-label="key">
+    <input id="check" autocomplete="off" spellcheck="false" aria-label="key" placeholder="check address for eligibility">
     <span id="check-out" hidden></span>
   </p>
   <div class="spring" aria-hidden="true"></div>

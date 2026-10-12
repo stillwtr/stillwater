@@ -152,15 +152,42 @@
     return extra;
   }
 
-  function fit() {
+  function fieldsOpen() {
+    return (vaultRow && !vaultRow.hidden) || (listRow && !listRow.hidden) || (returnRow && !returnRow.hidden);
+  }
+
+  /* The park and list rows sit under the plate. They do not resize it. */
+  function pinCourt(on) {
     var court = canvas.parentElement.parentElement;
-    var pad = getComputedStyle(canvas.parentElement);
-    var lip = (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
-    var roomW = court.clientWidth || document.documentElement.clientWidth;
-    var roomH = window.innerHeight - chromeBeside(court);
-    var room = Math.min(roomW, roomH) - lip;
-    var mult = Math.max(1, Math.floor(room / 128));
-    var px = String(mult * 128) + "px";
+    if (!court) return;
+    if (on) {
+      if (court.dataset.pinned === "1") return;
+      court.dataset.pinned = "1";
+      court.style.flex = "0 0 " + court.getBoundingClientRect().height + "px";
+      return;
+    }
+    if (court.dataset.pinned !== "1") return;
+    court.dataset.pinned = "";
+    court.style.flex = "";
+  }
+
+  function releaseCourt() {
+    if (fieldsOpen()) return;
+    pinCourt(false);
+    fit();
+  }
+
+  function fit() {
+    var court, pad, lip, roomW, roomH, room, mult, px;
+    if (fieldsOpen()) return;
+    court = canvas.parentElement.parentElement;
+    pad = getComputedStyle(canvas.parentElement);
+    lip = (parseFloat(pad.paddingTop) || 0) + (parseFloat(pad.paddingBottom) || 0);
+    roomW = court.clientWidth || document.documentElement.clientWidth;
+    roomH = window.innerHeight - chromeBeside(court);
+    room = Math.min(roomW, roomH) - lip;
+    mult = Math.max(1, Math.floor(room / 128));
+    px = String(mult * 128) + "px";
     canvas.style.width = px;
     canvas.style.height = px;
     placeRows();
@@ -824,10 +851,10 @@
   }
 
   /* Anvil can answer the send before latest moves. Wait until that block is visible. */
-  function settled(chain, hash, attempt) {
+  function settled(chain, hash, started) {
     if (hash === "local") return Promise.resolve();
-    if (!attempt) attempt = 0;
-    if (!hash || attempt > 40) return Promise.reject(new Error("receipt"));
+    if (!started) started = Date.now();
+    if (!hash || Date.now() - started > 180000) return Promise.reject(new Error("receipt"));
     return rpcValue(chain, "eth_getTransactionReceipt", [hash]).then(function (receipt) {
       var status = receipt && receipt.status;
       var mined = receipt && receipt.blockNumber;
@@ -841,8 +868,8 @@
       if (err && (err.message === "revert" || err.message === "receipt")) return Promise.reject(err);
       return new Promise(function (resolve, reject) {
         setTimeout(function () {
-          settled(chain, hash, attempt + 1).then(resolve, reject);
-        }, 50);
+          settled(chain, hash, started).then(resolve, reject);
+        }, 400);
       });
     });
   }
@@ -853,6 +880,37 @@
       if (!(n >= 0)) throw new Error("nonce");
       return n;
     });
+  }
+
+  /* The minter's count at the shutter block. A zero from a pruned host is not that night. */
+  function datedCount(chain, address, tag) {
+    var urls;
+    if (isFour(hall && hall.contract)) {
+      return count(chain, address, tag).then(function (n) {
+        if (!(n >= 1)) throw new Error("nonce");
+        return n;
+      });
+    }
+    urls = CHAINS[chain];
+    function step(i) {
+      if (!urls || i >= urls.length) return Promise.reject(new Error("nonce"));
+      return postJson(urls[i], {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_getTransactionCount",
+        params: [address, tag]
+      }).then(function (msg) {
+        var n;
+        if (!msg || msg.error || typeof msg.result !== "string") throw new Error("result");
+        n = parseInt(msg.result, 16);
+        if (!(n >= 1)) throw new Error("nonce");
+        return n;
+      }).catch(function () {
+        console.log(urls[i], "eth_getTransactionCount");
+        return step(i + 1);
+      });
+    }
+    return step(0);
   }
 
   /* A live plate may read the probe after it is set. A dated plate stays on the node. */
@@ -1011,6 +1069,7 @@
     parkBtn.setAttribute("aria-pressed", "false");
     vaultRow.hidden = true;
     vaultField.value = "";
+    releaseCourt();
   }
 
   function closeList() {
@@ -1018,6 +1077,7 @@
     listBtn.setAttribute("aria-pressed", "false");
     listRow.hidden = true;
     listPrice.value = "";
+    releaseCourt();
   }
 
   function closeReturn() {
@@ -1025,6 +1085,7 @@
     returnBtn.setAttribute("aria-pressed", "false");
     returnRow.hidden = true;
     returnField.value = "";
+    releaseCourt();
   }
 
   /* A major mode owns the row. Park, list, and return close when it changes. */
@@ -1568,13 +1629,12 @@
       return;
     }
     readCached(chain, contract, idn).then(function (token) {
-      var who = token.block !== 0 ? token.by : token.minter;
       var tag = token.block !== 0 ? "0x" + token.block.toString(16) : "latest";
       if (mine !== ticket) return;
       if (token.block === 0) {
         return liveCount(chain, token.minter).then(function (nonce) {
           if (mine !== ticket) return;
-          setPaint("open");
+          mark("live");
           index = idn;
           show(Plate.parseAddress(token.minter), nonce, token.minter, word(idn));
           readAsk(chain, contract, idn, mine);
@@ -1582,13 +1642,13 @@
           writeUrl({ chain: chain, contract: contract, id: idn, mode: "live", key: token.minter });
         });
       }
-      return count(chain, who, tag).then(function (nonce) {
+      return datedCount(chain, token.minter, tag).then(function (nonce) {
         if (mine !== ticket) return;
-        setPaint("dated");
+        mark("dated");
         index = idn;
-        show(Plate.parseAddress(who), nonce, who, word(idn));
+        show(Plate.parseAddress(token.minter), nonce, token.minter, word(idn));
         readAsk(chain, contract, idn, mine);
-      readRole(chain, contract, idn, mine);
+        readRole(chain, contract, idn, mine);
         writeUrl({
           chain: chain,
           contract: contract,
@@ -2205,9 +2265,10 @@
     hideSearch();
     if (emptyLine(noteLine)) setNote("");
     parkBtn.setAttribute("aria-pressed", "true");
+    pinCourt(true);
     vaultRow.hidden = false;
     vaultField.value = "";
-    vaultField.focus();
+    vaultField.focus({ preventScroll: true });
   });
 
   function sameChain(id, want) {
@@ -2416,7 +2477,6 @@
       setNote(vault + " — a wrong vault is permanent");
       return;
     }
-    setNote("mailbox named");
     mine = vaultTicket;
     role = {
       chain: plateRole.chain,
@@ -2447,10 +2507,12 @@
         to: role.contract,
         data: SEL.setMailbox + pad(role.id) + padAddr(role.vault)
       }).then(function (hash) {
+        if (hash !== "local") setNote("setting mailbox…");
         return settled(role.chain, hash);
       });
     }).then(function () {
       confirmBtn.setAttribute("aria-pressed", "false");
+      setNote("");
       closeVault();
       readHeld();
       showHeld(role);
@@ -2607,8 +2669,9 @@
     closeList();
     returnBtn.setAttribute("aria-pressed", "true");
     returnField.value = plateRole.title || "";
+    pinCourt(true);
     returnRow.hidden = false;
-    returnField.focus();
+    returnField.focus({ preventScroll: true });
   });
   returnConfirm.addEventListener("click", onReturn);
   returnField.addEventListener("keydown", function (event) {
@@ -2630,9 +2693,10 @@
     hideSearch();
     if (emptyLine(noteLine)) setNote("");
     listBtn.setAttribute("aria-pressed", "true");
+    pinCourt(true);
     listRow.hidden = false;
     listPrice.value = "";
-    listPrice.focus();
+    listPrice.focus({ preventScroll: true });
   });
   listConfirm.addEventListener("click", onListConfirm);
   listPrice.addEventListener("keydown", function (event) {

@@ -613,9 +613,9 @@
     });
   }
 
-  function settled(hash, attempt) {
-    if (!attempt) attempt = 0;
-    if (!hash || attempt > 40) return Promise.reject(new Error("receipt"));
+  function settled(hash, started) {
+    if (!started) started = Date.now();
+    if (!hash || Date.now() - started > 180000) return Promise.reject(new Error("receipt"));
     return receiptOf(hash).then(function (receipt) {
       var status = receipt && receipt.status;
       var mined = receipt && receipt.blockNumber;
@@ -629,8 +629,8 @@
       if (err && (err.message === "revert" || err.message === "receipt")) return Promise.reject(err);
       return new Promise(function (resolve, reject) {
         setTimeout(function () {
-          settled(hash, attempt + 1).then(resolve, reject);
-        }, 50);
+          settled(hash, started).then(resolve, reject);
+        }, 400);
       });
     });
   }
@@ -738,6 +738,7 @@
       value: priceWei
     };
     mintBtn.setAttribute("aria-pressed", "true");
+    setNote("");
     ensureChain().then(function () {
       return window.ethereum.request({
         method: "eth_sendTransaction",
@@ -747,12 +748,14 @@
       });
     }).then(function () {
       mintBtn.setAttribute("aria-pressed", "false");
+      setNote("");
       readLeft();
       drawKey(key, ticket);
     }).catch(function (err) {
       mintBtn.setAttribute("aria-pressed", "false");
       if (err && err.code === 4001) setNote("declined");
-      else setNote("not minted");
+      else if (err && err.message === "revert") setNote("not minted");
+      else setNote("the chain did not answer");
     });
   }
 
@@ -818,7 +821,7 @@
       }
       if (typeof msg.id === "string") {
         if (!checkAddr || msg.addr !== checkAddr) return;
-        showCheckLine(msg.addr, (msg.miss || !msg.proof) ? "no" : "yes");
+        showCheckLine(msg.addr, (msg.miss || !msg.proof) ? "ineligible" : "eligible");
         return;
       }
       if (!pending || msg.id !== pending.id || pending.ticket !== ticket) return;
@@ -963,7 +966,7 @@
     checkRow.setAttribute("data-open", "true");
     checkInput.hidden = true;
     checkOut.hidden = false;
-    checkOut.textContent = word ? (text + " " + word) : text;
+    checkOut.textContent = word ? (text + "\u2003" + word) : text;
   }
 
   function runCheck(addr) {
