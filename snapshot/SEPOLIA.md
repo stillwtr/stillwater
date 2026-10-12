@@ -2,26 +2,54 @@
 
 This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The real root is the mainnet root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument.
 
-- Stillwater: `0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5`
+- Stillwater: `0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465`
+- Deploy tx: `0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59`
+- Block: 11901405
+- Gas used: 19252085
+- Status: success
+- Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
+- Tiny root: `0xa58168e3afcda5f29139c04aa6b55317cabf96c8d548ec27d0528170f96c6ea9`
+- walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
+- solc: 0.8.37
+- viaIR: false
+- nextId: 0
+
+https://sepolia.etherscan.io/address/0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465
+
+https://sepolia.etherscan.io/tx/0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59
+
+The tiny root is three keys, sorted ascending. The Walk points here. The mint page follows the contract in the URL.
+
+- `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
+- `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`
+- `0xd934CC70B1b06256581527a534285f5bd6A7eDc7`
+
+Token 1 was not minted. This machine can sign only as the treasury, not as `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`. The mint below is the unsigned call for that key. Value is 0. It mints token 1. Date it after the mint is mined, with value 0.
+
+Mint `mint(bytes32[])` from `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`:
+
+`0xb77a147b000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000021acc0a9178455c62bde6d9e5e788ac9ef51b7906f721329a05d06c1d1625ad13734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714`
+
+Then `date(1)`:
+
+`0x60c757ba0000000000000000000000000000000000000000000000000000000000000001`
+
+## Previous test hall
+
+`0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5` is the previous test hall, and the pre-fix example. Same bytecode shape, price 0, same treasury. Its tiny root was `0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3`. Print 1 there stays parked. The Walk no longer points here.
+
 - Deploy tx: `0x39a2291607385224bee01e39938d47f14c6e2fd6374bcbb4b589f9a2fe48ec77`
 - Block: 11900379
 - Gas used: 19252085
 - Status: success
-- Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
-- Tiny root: `0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3`
-- walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
-- solc: 0.8.37
-- viaIR: false
 
 https://sepolia.etherscan.io/address/0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5
 
 https://sepolia.etherscan.io/tx/0x39a2291607385224bee01e39938d47f14c6e2fd6374bcbb4b589f9a2fe48ec77
 
-The tiny root is three test keys. The treasury is one of them. The Walk and the mint page point here.
+## Earlier test hall
 
-## Previous test hall
-
-`0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29` is the previous test hall. Same bytecode shape, price 0, same treasury. Its tiny root was `0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38`. The Walk no longer points here.
+`0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29` is an earlier test hall. Same bytecode shape, price 0, same treasury. Its tiny root was `0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38`. The Walk no longer points here.
 
 - Deploy tx: `0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f`
 - Block: 11899829
@@ -91,9 +119,11 @@ Title and vault on those receipts: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D` 
 
 ## No code
 
-Two creates in this pass ran out of gas and left no code.
+Creates that ran out of gas and left no code.
 
 - `0xe6B178E9ad34A6f91D3C02a8F8A0726BA62ea910` tx `0xb64e5a996aaea8e2ffa79290555ef9563865478fa1cbca3c4be9235632d05c24`
 - `0x7cb7922C4136327990519D962c49bd967BF7A3d8` tx `0x9d942d27bb48e5f7486a82c4addb9537bb401028bcb0a31ab369a0e4e0a39f55`
+- `0x2602d9C92bdc08861240524bA39fe8c8Ca4CB15c` tx `0x0fa2fdaec1274a1551df2ef2f1317842ae3c66074c41e0d2ab3d4cc44aa4a1dc`
+- `0xFA4bC74f5d16a0c7DCe6AC065019337DaFBBE377` tx `0xcf4b42193e4b5d99074c25a0249e94f13f632e386a412df8c659f0caa307f487`
 
 A mint at nonce 20 also ran out of gas and did not create print 1: `0x088b0c45740912fb051eef7f4dc62a77073a656201f878e1ddc934c31d6fbfe5`. The mint above is the one that landed.

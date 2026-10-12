@@ -19,8 +19,8 @@
   var RPCS = MAINNET_RPCS;
   var TEST_KEYS = [
     "0x08d97e624214f4ca5283b47c11030ab71bc7304d",
-    "0xd934cc70b1b06256581527a534285f5bd6a7edc7",
-    "0xf54fe7f5f0f8d13ce9b685b8ad167b466b637f0d"
+    "0x63dae8be19a773493a11aed1996899ec6cd55f45",
+    "0xd934cc70b1b06256581527a534285f5bd6a7edc7"
   ];
   var MODE = "open";
 

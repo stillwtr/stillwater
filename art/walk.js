@@ -59,7 +59,7 @@
   var note = document.getElementById("note");
   var field = document.getElementById("field");
   var EXAMPLE = "0xd934CC70B1b06256581527a534285f5bd6A7eDc7";
-  var SEPOLIA = "0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5";
+  var SEPOLIA = "0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465";
   var MAINNET_STILL = "0x47FA611Bb47f2172b99135D6c00dC5555ca230C1";
   var DOOR = "https://metamask.app.link/dapp/stillwtr.github.io/stillwater/art/walk.html";
   var CHAIN_ID = { mainnet: "0x1", sepolia: "0xaa36a7" };
@@ -1011,6 +1011,22 @@
     return /^[0-9a-fA-F]{40}$/.test(s) && !/^0+$/.test(s);
   }
 
+  /* The mailbox that currently holds this print. A stranger is anyone else outside the hall. */
+  function vaultHolds() {
+    if (!plateRole || !walletKey || plateRole.id !== index) return false;
+    if (!namedVault(plateRole.mailbox)) return false;
+    return sameAddr(walletKey, plateRole.owner) && sameAddr(walletKey, plateRole.mailbox);
+  }
+
+  function speakHall() {
+    if (!plateRole || plateRole.id !== index || !walletKey) return;
+    if (vaultHolds()) {
+      if (noteLine === HALL_OUT) setNote("");
+      return;
+    }
+    if (hallWatch && proofState === "miss" && (!noteLine || noteLine === HALL_OUT)) setNote(HALL_OUT);
+  }
+
   /* A named or parked print is not for sale. Buy stays off until the read says so. */
   function saleOpen() {
     if (!plateRole || !plateAsk || plateRole.id !== plateAsk.id) return false;
@@ -1168,6 +1184,7 @@
     if (titleHere || returns || showCancel || showDate) buyBtn.hidden = true;
     paintBuy();
     veilSearch();
+    speakHall();
   }
 
   function paintDoor() {
@@ -1844,8 +1861,8 @@
 
   var TEST_KEYS = [
     "0x08d97e624214f4ca5283b47c11030ab71bc7304d",
-    "0xd934cc70b1b06256581527a534285f5bd6a7edc7",
-    "0xf54fe7f5f0f8d13ce9b685b8ad167b466b637f0d"
+    "0x63dae8be19a773493a11aed1996899ec6cd55f45",
+    "0xd934cc70b1b06256581527a534285f5bd6a7edc7"
   ];
 
   function cmp32(a, b) {
@@ -1931,9 +1948,7 @@
         if (proofState === "have" && hallProof) return;
         hallProof = null;
         proofState = "miss";
-        if (hallWatch && msg.addr && sameAddr(msg.addr, walletKey)) {
-          if (!noteLine || noteLine === HALL_OUT) setNote(HALL_OUT);
-        }
+        if (hallWatch && msg.addr && sameAddr(msg.addr, walletKey)) speakHall();
         if (buyWait) settleBuy(null);
         return;
       }
@@ -2502,11 +2517,13 @@
           var data;
           if (!sameAddr(from, walletKey)) throw new Error("plate");
           if (!proof) {
+            if (vaultHolds()) throw new Error("plate");
             hallWatch = true;
             throw why(HALL_OUT);
           }
           data = encodeBuy(ask.id, proof);
           if (!data || data.slice(0, 10).toLowerCase() !== SEL.buy) {
+            if (vaultHolds()) throw new Error("plate");
             hallWatch = true;
             throw why(HALL_OUT);
           }

@@ -149,6 +149,7 @@
     }
     .check input, .check span, .check input::placeholder {
       font: inherit;
+      font-weight: 500;
       color: var(--dim);
       background: transparent;
       border: 0;
@@ -159,6 +160,19 @@
       letter-spacing: 0.04em;
       width: min(36rem, 92vw);
       outline: none;
+    }
+    .check input {
+      opacity: 0.4;
+      border: 1px solid currentColor;
+      padding: 0.22rem 0.7rem;
+      width: auto;
+      min-width: min(22rem, 92vw);
+      max-width: 92vw;
+      box-sizing: border-box;
+    }
+    .check input::placeholder {
+      color: currentColor;
+      opacity: 1;
     }
     .check span { cursor: text; }
     .spring {
@@ -223,7 +237,7 @@
   </div>
   <p class="note" id="note"></p>
   <p class="check" id="check-row">
-    <input id="check" autocomplete="off" spellcheck="false" aria-label="key" placeholder="check address for eligibility">
+    <input id="check" autocomplete="off" spellcheck="false" aria-label="key" placeholder="paste address for eligibility">
     <span id="check-out" hidden></span>
   </p>
   <div class="spring" aria-hidden="true"></div>
