@@ -39,10 +39,11 @@ function hexOf(bytes) {
   return s;
 }
 
-function build(text) {
+function build(text, root) {
   var level;
   var next;
   var i;
+  var lock = (root || ROOT).toLowerCase();
   addrs = text.trim().split(/\s+/);
   level = new Array(addrs.length);
   for (i = 0; i < addrs.length; i++) level[i] = leafOf(addrs[i]);
@@ -56,7 +57,7 @@ function build(text) {
     level = next;
     layers.push(level);
   }
-  if (("0x" + hexOf(level[0])) !== ROOT) throw new Error("root");
+  if (("0x" + hexOf(level[0])) !== lock) throw new Error("root");
 }
 
 function findIndex(addr) {
@@ -98,29 +99,49 @@ function reply(data) {
   else postMessage({ id: data.id, addr: addr, proof: proofAt(index) });
 }
 
-function begin() {
-  if (started) return;
-  started = true;
-  fetch("../snapshot/walkers.txt").then(function (res) {
-    if (!res.ok) throw new Error("missing");
-    return res.text();
-  }).then(function (text) {
-    build(text);
+function finish(err) {
+  if (!err) {
     postMessage({ ready: true });
     if (queued) {
       var job = queued;
       queued = null;
       reply(job);
     }
+    return;
+  }
+  postMessage({ ready: false, match: !!(err && err.message === "root") });
+}
+
+function begin(text, root) {
+  if (started) return;
+  started = true;
+  try {
+    build(text, root);
+    finish(null);
+  } catch (err) {
+    finish(err);
+  }
+}
+
+function loadFile(root) {
+  if (started) return;
+  fetch("../snapshot/walkers.txt").then(function (res) {
+    if (!res.ok) throw new Error("missing");
+    return res.text();
+  }).then(function (text) {
+    begin(text, root);
   }).catch(function (err) {
-    postMessage({ ready: false, match: !!(err && err.message === "root") });
+    if (started) return;
+    started = true;
+    finish(err);
   });
 }
 
 onmessage = function (ev) {
   var data = ev.data || {};
   if (data.start) {
-    begin();
+    if (data.list) begin(String(data.list), data.root);
+    else loadFile(data.root);
     return;
   }
   /* The list is still loading. Hold the key. Do not call it a miss. */

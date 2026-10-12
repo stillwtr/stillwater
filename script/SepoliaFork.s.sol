@@ -15,8 +15,9 @@ contract SepoliaFork is Script {
     function run() external {
         require(block.chainid == 11155111, "sepolia fork");
         Stillwater still = Stillwater(vm.envAddress("STILL"));
-        address extra = vm.envAddress("SEPOLIA_EXTRA");
-        bytes32 root = SepoliaRoot.root3(SepoliaRoot.TREASURY, SepoliaRoot.OTHER, extra);
+        address mate = vm.envAddress("SEPOLIA_A");
+        address third = vm.envAddress("SEPOLIA_B");
+        bytes32 root = SepoliaRoot.root3(SepoliaRoot.TREASURY, mate, third);
         require(root == SepoliaRoot.TINY, "tiny");
         require(still.merkleRoot() == root, "merkleRoot");
         require(still.price() == 0, "price");
@@ -25,18 +26,18 @@ contract SepoliaFork is Script {
         require(keccak256(bytes(still.walkBase())) == keccak256(bytes(WALK)), "walk");
         require(still.nonceProbe() == address(0), "probe");
 
-        bytes32[] memory proofA = SepoliaRoot.proofOf(SepoliaRoot.TREASURY, SepoliaRoot.TREASURY, SepoliaRoot.OTHER, extra);
-        bytes32[] memory proofB = SepoliaRoot.proofOf(SepoliaRoot.OTHER, SepoliaRoot.TREASURY, SepoliaRoot.OTHER, extra);
+        bytes32[] memory proofA = SepoliaRoot.proofOf(SepoliaRoot.TREASURY, SepoliaRoot.TREASURY, mate, third);
+        bytes32[] memory proofB = SepoliaRoot.proofOf(mate, SepoliaRoot.TREASURY, mate, third);
 
         vm.prank(SepoliaRoot.TREASURY);
         still.mint(proofA);
         require(still.ownerOf(1) == SepoliaRoot.TREASURY, "mint A");
         require(still.minter(1) == SepoliaRoot.TREASURY, "minter A");
 
-        vm.prank(SepoliaRoot.OTHER);
+        vm.prank(mate);
         still.mint(proofB);
-        require(still.ownerOf(2) == SepoliaRoot.OTHER, "mint B");
-        require(still.titleHolder(2) == SepoliaRoot.OTHER, "title B");
+        require(still.ownerOf(2) == mate, "mint B");
+        require(still.titleHolder(2) == mate, "title B");
 
         vm.prank(STRANGER);
         _reverts(address(still), abi.encodeCall(Stillwater.mint, (proofA)), Stillwater.BadProof.selector);
@@ -48,10 +49,10 @@ contract SepoliaFork is Script {
         vm.prank(SepoliaRoot.TREASURY);
         _reverts(address(still), abi.encodeCall(Stillwater.date, (1)), Stillwater.AlreadyDated.selector);
 
-        vm.prank(SepoliaRoot.OTHER);
+        vm.prank(mate);
         still.setMailbox(2, SepoliaRoot.TREASURY);
         require(still.ownerOf(2) == SepoliaRoot.TREASURY, "parked");
-        require(still.titleHolder(2) == SepoliaRoot.OTHER, "title stays");
+        require(still.titleHolder(2) == mate, "title stays");
         require(still.mailboxOf(2) == SepoliaRoot.TREASURY, "mailbox");
         (bool accepted,) = address(still).call(abi.encodeWithSignature("accept(uint256)", 2));
         require(!accepted, "accept");
@@ -61,16 +62,16 @@ contract SepoliaFork is Script {
         require(still.listedPrice(1) == 0.2 ether, "listed own");
         require(still.listedPrice(2) == 0, "parked not listed");
 
-        vm.prank(SepoliaRoot.OTHER);
+        vm.prank(mate);
         _reverts(address(still), abi.encodeCall(Stillwater.list, (2, 0.2 ether)), Stillwater.NotTitle.selector);
         vm.prank(SepoliaRoot.TREASURY);
         _reverts(address(still), abi.encodeCall(Stillwater.list, (2, 0.2 ether)), Stillwater.NotTitle.selector);
 
-        vm.prank(SepoliaRoot.OTHER);
+        vm.prank(mate);
         _reverts(
             address(still),
             abi.encodeWithSignature(
-                "transferFrom(address,address,uint256)", SepoliaRoot.TREASURY, SepoliaRoot.OTHER, 2
+                "transferFrom(address,address,uint256)", SepoliaRoot.TREASURY, mate, 2
             ),
             Stillwater.Hook.selector
         );
@@ -81,18 +82,18 @@ contract SepoliaFork is Script {
             address(still), abi.encodeCall(Stillwater.buy, (1, proofA)), 0.2 ether, Stillwater.BadProof.selector
         );
 
-        vm.deal(SepoliaRoot.OTHER, 1 ether);
-        vm.prank(SepoliaRoot.OTHER);
+        vm.deal(mate, 1 ether);
+        vm.prank(mate);
         still.buy{value: 0.2 ether}(1, proofB);
-        require(still.ownerOf(1) == SepoliaRoot.OTHER, "buyer");
-        require(still.titleHolder(1) == SepoliaRoot.OTHER, "buyer title");
+        require(still.ownerOf(1) == mate, "buyer");
+        require(still.titleHolder(1) == mate, "buyer title");
         require(still.listedPrice(1) == 0, "price cleared");
 
         vm.prank(SepoliaRoot.TREASURY);
-        still.transferFrom(SepoliaRoot.TREASURY, SepoliaRoot.OTHER, 2);
-        require(still.ownerOf(2) == SepoliaRoot.OTHER, "home");
+        still.transferFrom(SepoliaRoot.TREASURY, mate, 2);
+        require(still.ownerOf(2) == mate, "home");
         require(still.mailboxOf(2) == address(0), "mailbox cleared");
-        require(still.titleHolder(2) == SepoliaRoot.OTHER, "title home");
+        require(still.titleHolder(2) == mate, "title home");
 
         console2.log("SEPOLIA_FORK_OK");
         console2.log("block", block.number);

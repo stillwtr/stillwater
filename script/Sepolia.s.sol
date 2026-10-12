@@ -13,8 +13,9 @@ contract SepoliaDeploy is Script {
 
     function run() external {
         require(block.chainid == 11155111, "sepolia");
-        address extra = vm.envAddress("SEPOLIA_EXTRA");
-        bytes32 root = SepoliaRoot.root3(SepoliaRoot.TREASURY, SepoliaRoot.OTHER, extra);
+        address mate = vm.envAddress("SEPOLIA_A");
+        address third = vm.envAddress("SEPOLIA_B");
+        bytes32 root = SepoliaRoot.root3(SepoliaRoot.TREASURY, mate, third);
         require(root == SepoliaRoot.TINY, "tiny");
         require(root != WALKER, "not the walker root");
         uint256 pk = _pk();

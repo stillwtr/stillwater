@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.37;
 
-/// Sepolia list. The two named test keys, plus one further key supplied at deploy.
+/// Sepolia list. Treasury, plus two keys supplied at deploy.
 /// Not the walker root.
 library SepoliaRoot {
     address internal constant TREASURY = 0x08d97e624214f4Ca5283b47C11030AB71Bc7304D;
     address internal constant OTHER = 0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA;
-    /// Three-key test root. The third key is not stored here.
-    bytes32 internal constant TINY = 0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38;
+    /// Three-key test root. The two supplied keys are not stored here.
+    bytes32 internal constant TINY = 0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3;
 
     function leaf(address key) internal pure returns (bytes32) {
         return keccak256(bytes.concat(keccak256(abi.encode(key))));

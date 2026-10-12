@@ -57,7 +57,7 @@
   var note = document.getElementById("note");
   var field = document.getElementById("field");
   var EXAMPLE = "0xd934CC70B1b06256581527a534285f5bd6A7eDc7";
-  var SEPOLIA = "0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29";
+  var SEPOLIA = "0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5";
   var MAINNET_STILL = "0x47FA611Bb47f2172b99135D6c00dC5555ca230C1";
   var DOOR = "https://metamask.app.link/dapp/stillwtr.github.io/stillwater/art/walk.html";
   var CHAIN_ID = { mainnet: "0x1", sepolia: "0xaa36a7" };
@@ -166,8 +166,13 @@
     placeRows();
   }
 
+  function narrowWalk() {
+    return window.matchMedia("(max-width: 480px)").matches;
+  }
+
   /* The mode cluster stays centered on the plate. Disconnect keeps the plate's right edge.
-     A narrow plate tightens the cluster so the two do not meet. */
+     A narrow plate tightens the cluster so the two do not meet.
+     On a narrow viewport the connect button is its own line, so the modes keep the plate width. */
   function placeRows() {
     var words, width, door, cluster, room, scale;
     words = modeBar.querySelector(".words");
@@ -178,9 +183,9 @@
     words.style.letterSpacing = "";
     words.style.gap = "";
     words.style.transform = "";
-    door = connectBtn.offsetWidth;
+    door = narrowWalk() ? 0 : connectBtn.offsetWidth;
     cluster = words.offsetWidth;
-    room = width - (door * 2) - 12;
+    room = narrowWalk() ? (width - 8) : (width - (door * 2) - 12);
     if (!(room >= 1)) room = 1;
     if (cluster > room) {
       words.style.letterSpacing = "0.06em";
@@ -1603,6 +1608,20 @@
     });
   }
 
+  function pointMint(q) {
+    var link = document.querySelector(".name a");
+    var contract = q.contract;
+    var chain = q.chain;
+    if (!link) return;
+    if (!contract && chain === "sepolia" && q.id) contract = SEPOLIA;
+    if (!contract) {
+      link.setAttribute("href", "mint.html");
+      return;
+    }
+    chain = chain || "sepolia";
+    link.setAttribute("href", "mint.html?chain=" + encodeURIComponent(chain) + "&contract=" + contract);
+  }
+
   function hallFrom(q) {
     if (q.contract) {
       return { chain: q.chain || "sepolia", contract: q.contract, nextId: 0, known: false };
@@ -1640,6 +1659,7 @@
     snow();
     setNote(LOADING);
     hall = hallFrom(q);
+    pointMint(q);
     if (isFour(hall.contract)) fourBind("");
     arrows();
     if (!hall.contract) {

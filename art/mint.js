@@ -1,10 +1,27 @@
 (function () {
   var STILL = "";
+  var CHAIN = "0x1";
   var SUPPLY = 512;
   var PRICE = "0xeebe0b40e8000";
+  var priceWei = PRICE;
   var MINT_SIG = "b77a147b";
   var NEXT_ID = "0x61b8ce8c";
-  var RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
+  var MERKLE_SIG = "0x2eb4a7ab";
+  var PRICE_SIG = "0xa035b1fe";
+  var MAINNET_RPCS = ["https://ethereum-rpc.publicnode.com", "https://eth.drpc.org"];
+  var SEPOLIA_RPCS = [
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://sepolia.drpc.org",
+    "https://rpc.sepolia.ethpandaops.io",
+    "https://1rpc.io/sepolia",
+    "https://ethereum-sepolia.publicnode.com"
+  ];
+  var RPCS = MAINNET_RPCS;
+  var TEST_KEYS = [
+    "0x08d97e624214f4ca5283b47c11030ab71bc7304d",
+    "0xd934cc70b1b06256581527a534285f5bd6a7edc7",
+    "0xf54fe7f5f0f8d13ce9b685b8ad167b466b637f0d"
+  ];
   var MODE = "open";
 
   var lintelWrap = document.getElementById("lintel-wrap");
@@ -47,7 +64,22 @@
   var nameLink = document.querySelector(".name a");
 
   function walkHref(id) {
-    return "walk.html?chain=mainnet&contract=" + STILL + "&id=" + id + "&mode=live";
+    var chain = CHAIN === "0xaa36a7" ? "sepolia" : "mainnet";
+    return "walk.html?chain=" + chain + "&contract=" + STILL + "&id=" + id + "&mode=live";
+  }
+
+  /* Bare mint.html leaves STILL empty. A contract in the URL is the hall. */
+  function applyHallQuery() {
+    var q = new URLSearchParams(location.search);
+    var chain = (q.get("chain") || "").toLowerCase();
+    var contract = q.get("contract") || "";
+    if (!/^0x[0-9a-fA-F]{40}$/.test(contract)) return;
+    STILL = contract;
+    priceWei = null;
+    if (chain === "sepolia") {
+      CHAIN = "0xaa36a7";
+      RPCS = SEPOLIA_RPCS;
+    }
   }
 
   function setNote(text) {
@@ -214,6 +246,57 @@
 
   function encodeMint(proof) {
     return encodeProof(MINT_SIG, proof);
+  }
+
+  function cmp32(a, b) {
+    var i;
+    for (i = 0; i < 32; i++) if (a[i] !== b[i]) return a[i] - b[i];
+    return 0;
+  }
+
+  function hashPair(a, b) {
+    var left = cmp32(a, b) < 0 ? a : b;
+    var right = left === a ? b : a;
+    var buf = new Uint8Array(64);
+    buf.set(left, 0);
+    buf.set(right, 32);
+    return PlateKeccak.keccak256(buf);
+  }
+
+  function leafOf(addr) {
+    var hex = addr.slice(2);
+    var raw = new Uint8Array(32);
+    var i;
+    for (i = 0; i < 20; i++) raw[12 + i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return PlateKeccak.keccak256(PlateKeccak.keccak256(raw));
+  }
+
+  function tinyRoot() {
+    var level = TEST_KEYS.map(leafOf);
+    var next;
+    var i;
+    var s = "";
+    var h;
+    while (level.length > 1) {
+      next = [];
+      for (i = 0; i < level.length; i += 2) {
+        if (i + 1 >= level.length) next.push(level[i]);
+        else next.push(hashPair(level[i], level[i + 1]));
+      }
+      level = next;
+    }
+    for (i = 0; i < level[0].length; i++) {
+      h = level[0][i].toString(16);
+      s += h.length === 1 ? "0" + h : h;
+    }
+    return "0x" + s;
+  }
+
+  function cleanAddr(raw) {
+    var s = (raw || "").trim();
+    if (s.slice(0, 2) === "0x" || s.slice(0, 2) === "0X") s = s.slice(2);
+    if (!/^[0-9a-fA-F]{40}$/.test(s)) return "";
+    return "0x" + s.toLowerCase();
   }
 
   function disarm() {
@@ -566,13 +649,27 @@
     });
   }
 
-  function ensureMainnet() {
+  function ensureChain() {
     return window.ethereum.request({ method: "eth_chainId" }).then(function (id) {
-      if (id === "0x1") return;
+      if (id === CHAIN) return;
       return window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x1" }]
+        params: [{ chainId: CHAIN }]
       });
+    });
+  }
+
+  function readPrice() {
+    if (!STILL) return;
+    rpc("eth_call", [{ to: STILL, data: PRICE_SIG }, "latest"]).then(function (hex) {
+      var n = BigInt(hex);
+      var label = n === 0n ? "0 eth" : (n === 4200000000000000n ? "0.00420 eth" : null);
+      priceWei = "0x" + n.toString(16);
+      if (!label) return;
+      priceBtn.setAttribute("data-value", label);
+      if (priceBtn.getAttribute("data-open") !== "1") priceBtn.textContent = label;
+    }).catch(function () {
+      setNote("the chain did not answer");
     });
   }
 
@@ -632,15 +729,16 @@
       setNote("the door is not open");
       return;
     }
+    if (priceWei == null) return;
     var sent = {
       from: key,
       to: STILL,
       data: encodeMint(heldProof),
-      chainId: "0x1",
-      value: PRICE
+      chainId: CHAIN,
+      value: priceWei
     };
     mintBtn.setAttribute("aria-pressed", "true");
-    ensureMainnet().then(function () {
+    ensureChain().then(function () {
       return window.ethereum.request({
         method: "eth_sendTransaction",
         params: [sent]
@@ -707,6 +805,7 @@
         proofsOk = true;
         proofsReady = true;
         if (key) applyKey();
+        if (checkWait) runCheck(checkWait);
         return;
       }
       if (msg.ready === false) {
@@ -714,6 +813,12 @@
         proofsReady = true;
         listNote = msg.match ? "the list does not match" : "the list did not load";
         if (key) applyKey();
+        if (checkWait) runCheck(checkWait);
+        return;
+      }
+      if (typeof msg.id === "string") {
+        if (!checkAddr || msg.addr !== checkAddr) return;
+        showCheckLine(msg.addr, (msg.miss || !msg.proof) ? "no" : "yes");
         return;
       }
       if (!pending || msg.id !== pending.id || pending.ticket !== ticket) return;
@@ -726,7 +831,24 @@
       heldProof = msg.proof;
       drawKey(pending.addr, pending.ticket);
     };
-    worker.postMessage({ start: true });
+    if (!STILL) {
+      worker.postMessage({ start: true });
+      return;
+    }
+    rpc("eth_call", [{ to: STILL, data: MERKLE_SIG }, "latest"]).then(function (root) {
+      var lock = String(root).toLowerCase();
+      if (lock === tinyRoot()) {
+        worker.postMessage({ start: true, root: lock, list: TEST_KEYS.join("\n") });
+        return;
+      }
+      worker.postMessage({ start: true, root: lock });
+    }).catch(function () {
+      proofsOk = false;
+      proofsReady = true;
+      listNote = "the list did not load";
+      if (key) applyKey();
+      if (checkWait) runCheck(checkWait);
+    });
   }
 
   document.addEventListener("visibilitychange", function () {
@@ -827,8 +949,76 @@
     resume();
   });
 
+  var checkRow = document.getElementById("check-row");
+  var checkInput = document.getElementById("check");
+  var checkOut = document.getElementById("check-out");
+  var checkId = 0;
+  var checkWait = "";
+  var checkAddr = "";
+
+  function showCheckLine(addr, word) {
+    var text = shortKey(checksum(addr));
+    if (!text) return;
+    checkRow.setAttribute("data-shut", "false");
+    checkRow.setAttribute("data-open", "true");
+    checkInput.hidden = true;
+    checkOut.hidden = false;
+    checkOut.textContent = word ? (text + " " + word) : text;
+  }
+
+  function runCheck(addr) {
+    checkAddr = addr;
+    checkWait = "";
+    if (!hallStarted) startHall();
+    if (!proofsReady) {
+      checkWait = addr;
+      showCheckLine(addr, "");
+      return;
+    }
+    if (!proofsOk) {
+      setNote(listNote);
+      showCheckLine(addr, "");
+      return;
+    }
+    showCheckLine(addr, "");
+    worker.postMessage({ id: "c" + (++checkId), addr: addr });
+  }
+
+  function openCheck() {
+    checkRow.setAttribute("data-shut", "false");
+    checkInput.hidden = false;
+    checkOut.hidden = true;
+    checkOut.textContent = "";
+  }
+
+  if (checkInput) {
+    checkInput.addEventListener("focus", openCheck);
+    checkInput.addEventListener("input", function () {
+      var addr = cleanAddr(checkInput.value);
+      if (!addr) return;
+      runCheck(addr);
+    });
+    checkInput.addEventListener("blur", function () {
+      if (checkInput.value.trim()) return;
+      if (!checkOut.hidden && checkOut.textContent) return;
+      checkRow.setAttribute("data-shut", "true");
+      checkRow.removeAttribute("data-open");
+    });
+    checkOut.addEventListener("click", function () {
+      openCheck();
+      checkInput.value = "";
+      checkInput.focus();
+    });
+    checkRow.addEventListener("pointerdown", function (event) {
+      if (event.target === checkInput) return;
+      checkRow.setAttribute("data-shut", "false");
+    });
+  }
+
+  applyHallQuery();
   buildGrid();
   showGrid();
+  readPrice();
   readLeft();
   resume();
   watchKey();

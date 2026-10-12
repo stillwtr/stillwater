@@ -2,22 +2,35 @@
 
 This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The real root is the mainnet root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument.
 
-- Stillwater: `0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29`
-- Deploy tx: `0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f`
-- Block: 11899829
-- Gas used: 19252073
+- Stillwater: `0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5`
+- Deploy tx: `0x39a2291607385224bee01e39938d47f14c6e2fd6374bcbb4b589f9a2fe48ec77`
+- Block: 11900379
+- Gas used: 19252085
 - Status: success
 - Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
-- Tiny root: `0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38`
+- Tiny root: `0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3`
 - walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
 - solc: 0.8.37
 - viaIR: false
 
+https://sepolia.etherscan.io/address/0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5
+
+https://sepolia.etherscan.io/tx/0x39a2291607385224bee01e39938d47f14c6e2fd6374bcbb4b589f9a2fe48ec77
+
+The tiny root is three test keys. The treasury is one of them. The Walk and the mint page point here.
+
+## Previous test hall
+
+`0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29` is the previous test hall. Same bytecode shape, price 0, same treasury. Its tiny root was `0x2207bfd56870ed440c4c36df8b3c1d99c72d31004d4b37f434957d97a672ce38`. The Walk no longer points here.
+
+- Deploy tx: `0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f`
+- Block: 11899829
+- Gas used: 19252073
+- Status: success
+
 https://sepolia.etherscan.io/address/0x32362677bd7C4C911aB59b19ECCe3bf5943E8A29
 
 https://sepolia.etherscan.io/tx/0x97ab59ab8f76837c02aecd5279410c3e675ce32b21e9f613b62e9a5e37ad320f
-
-The tiny root is the previous two test keys plus one further test key. The Walk points here.
 
 ## Previous hall
 
@@ -45,7 +58,7 @@ https://sepolia.etherscan.io/tx/0x42e8a308b155b592361f5d7b1e5541453cb9d1ada9d799
 
 ## Two keys
 
-Both are on the previous hall's tiny root. The new hall's root also includes them. A stranger is any address not on that hall's root. The vault does not need a proof. Mainnet walker proofs do not apply to either test root.
+Both are on the earlier test halls' roots. The treasury is also on this hall. A stranger is any address not on that hall's root. The vault does not need a proof. Mainnet walker proofs do not apply to these test roots.
 
 - Tree key A / treasury / deployer: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - Tree key B: `0x51AB6D466422e9Fca8FaD9EF21a6e43F9F083fDA`

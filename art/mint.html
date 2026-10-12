@@ -135,7 +135,39 @@
       color: var(--dim);
       transition: opacity 280ms linear;
     }
+    .note:empty {
+      display: none;
+    }
     .note.fade { opacity: 0; }
+    .check {
+      margin: 0;
+      padding: 0 1rem 0.45rem;
+      min-height: 1.4rem;
+      text-align: center;
+      color: var(--dim);
+      font-weight: 500;
+    }
+    .check[data-shut="true"] {
+      opacity: 0;
+    }
+    .check[data-open="true"],
+    .check:focus-within {
+      opacity: 1;
+    }
+    .check input, .check span {
+      font: inherit;
+      color: var(--dim);
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      text-align: center;
+      text-transform: none;
+      letter-spacing: 0.04em;
+      width: min(36rem, 92vw);
+      outline: none;
+    }
+    .check span { cursor: text; }
     .spring {
       flex: 1 1 auto;
       min-height: 0;
@@ -197,6 +229,10 @@
     </div>
   </div>
   <p class="note" id="note"></p>
+  <p class="check" id="check-row" data-shut="true">
+    <input id="check" autocomplete="off" spellcheck="false" aria-label="key">
+    <span id="check-out" hidden></span>
+  </p>
   <div class="spring" aria-hidden="true"></div>
   <footer class="foot">
     <button type="button" id="fork" class="colophon" data-full="0x47FA611Bb47f2172b99135D6c00dC5555ca230C1" aria-label="0x47FA611Bb47f2172b99135D6c00dC5555ca230C1">
