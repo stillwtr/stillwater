@@ -242,20 +242,25 @@
         align-items: center;
         justify-content: flex-start;
       }
-      .mode {
-        flex-direction: column;
-        align-items: center;
-        gap: 0.4rem;
+      .mode { display: contents; }
+      .words {
+        order: 1;
+        gap: 0.55rem;
         font-size: 0.62rem;
         letter-spacing: 0.12em;
       }
+      #field { order: 2; }
       #connect {
+        order: 3;
         position: static;
         top: auto;
         right: auto;
         transform: none;
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
       }
-      .words { gap: 0.55rem; }
+      .role { order: 4; }
+      .vault { order: 5; }
     }
   </style>
 </head>

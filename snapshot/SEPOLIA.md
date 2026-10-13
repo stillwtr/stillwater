@@ -41,11 +41,15 @@ https://sepolia.etherscan.io/tx/0xaa5bfe3a1244c9b81711ddfa95bef6abb4dd69779c3846
 
 https://sepolia.etherscan.io/tx/0x8367701e3e7d0fac138f7e20bface4710d6a831e4c1b809d7fcba2fa5b2ed452
 
-This machine can sign only as the treasury. `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45` has not minted. The mint below is the unsigned call for that key. Value is 0. It mints the next print. `date(1)` has already been mined.
+This machine can sign only as the treasury. `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45` has not minted. Token 2 is that key's print. Value is 0. `date(1)` has already been mined. After the mint is in a block, `date(2)` shutters it. The dated plate reads the minter's count in the block before the date block.
 
 Mint `mint(bytes32[])` from `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`:
 
 `0xb77a147b000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000021acc0a9178455c62bde6d9e5e788ac9ef51b7906f721329a05d06c1d1625ad13734663a3e48a67de2408a70bf4244a28281a1df003bf3bbb6f627e46363e5714`
+
+Then `date(2)`:
+
+`0x60c757ba0000000000000000000000000000000000000000000000000000000000000002`
 
 ## Previous test hall
 

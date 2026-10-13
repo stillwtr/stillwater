@@ -202,9 +202,9 @@
 
   /* The mode cluster stays centered on the plate. Disconnect keeps the plate's right edge.
      A narrow plate tightens the cluster so the two do not meet.
-     On a narrow viewport the connect button is its own line, so the modes keep the plate width. */
+     On a narrow viewport connect sits under SEARCH, and under the open field. */
   function placeRows() {
-    var words, width, door, cluster, room, scale;
+    var words, width, door, cluster, room, scale, searchBox, connectBox, shift;
     words = modeBar.querySelector(".words");
     width = canvas.parentElement.offsetWidth;
     if (!(width >= 1)) return;
@@ -213,6 +213,7 @@
     words.style.letterSpacing = "";
     words.style.gap = "";
     words.style.transform = "";
+    connectBtn.style.transform = "";
     door = narrowWalk() ? 0 : connectBtn.offsetWidth;
     cluster = words.offsetWidth;
     room = narrowWalk() ? (width - 8) : (width - (door * 2) - 12);
@@ -227,6 +228,11 @@
       words.style.transform = "scale(" + scale + ")";
       words.style.transformOrigin = "center center";
     }
+    if (!narrowWalk() || !field.hidden) return;
+    searchBox = searchBtn.getBoundingClientRect();
+    connectBox = connectBtn.getBoundingClientRect();
+    shift = (searchBox.left + searchBox.width / 2) - (connectBox.left + connectBox.width / 2);
+    if (Math.abs(shift) >= 0.5) connectBtn.style.transform = "translateX(" + shift.toFixed(2) + "px)";
   }
 
   function snow() {
@@ -262,6 +268,7 @@
   function closeSearch() {
     field.hidden = true;
     if (lit !== "search") searchBtn.setAttribute("aria-pressed", "false");
+    placeRows();
   }
 
   function hideSearch() {
@@ -2841,6 +2848,7 @@
     if (heldBytes && mode !== "dated") arm(heldBytes, heldNonce, heldPace);
     field.hidden = false;
     veilSearch();
+    placeRows();
     field.value = shownKey || EXAMPLE;
     field.focus();
     field.select();
