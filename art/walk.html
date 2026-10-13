@@ -242,6 +242,11 @@
         align-items: center;
         justify-content: flex-start;
       }
+      .threshold {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
       .mode { display: contents; }
       .words {
         order: 1;
@@ -249,13 +254,24 @@
         font-size: 0.62rem;
         letter-spacing: 0.12em;
       }
-      #field { order: 2; }
+      #field {
+        order: 2;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        align-self: center;
+        box-sizing: border-box;
+      }
       #connect {
         order: 3;
         position: static;
         top: auto;
         right: auto;
+        left: auto;
         transform: none;
+        margin-left: 0;
+        margin-right: 0;
+        align-self: center;
         font-size: 0.62rem;
         letter-spacing: 0.12em;
       }

@@ -177,14 +177,18 @@
     key = value || "";
     StillDoor.write(key);
     if (key) StillDoor.off(false);
-    clearAddress();
     if (!key) {
+      clearAddress();
       connectBtn.textContent = "connect";
       connectBtn.setAttribute("aria-pressed", "false");
+      mintBtn.hidden = false;
+      mintBtn.textContent = "connect wallet";
       return;
     }
+    showAddress();
     connectBtn.textContent = "disconnect";
     connectBtn.setAttribute("aria-pressed", "true");
+    mintBtn.textContent = "mint";
   }
 
   function markCopied() {
@@ -423,7 +427,8 @@
     pool.hidden = true;
     gridEl.hidden = false;
     if (checkRow) checkRow.hidden = false;
-    clearAddress();
+    if (key) showAddress();
+    else clearAddress();
     for (i = 0; i < cells.length; i++) {
       cell = cells[i];
       cell.phase = 0;
@@ -697,8 +702,8 @@
     }
     setNote("");
     startHall();
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
-      showKey(accounts && accounts[0] ? accounts[0] : "");
+    StillDoor.ask().then(function (selected) {
+      showKey(selected || "");
       if (key) applyKey();
     }).catch(function (err) {
       if (err && err.code === 4001) setNote("declined");
@@ -707,6 +712,7 @@
 
   function disconnect() {
     StillDoor.off(true);
+    StillDoor.release();
     ticket += 1;
     heldProof = null;
     pending = null;
@@ -721,6 +727,10 @@
   }
 
   function mint() {
+    if (!key) {
+      connect();
+      return;
+    }
     if (!window.ethereum) {
       openDoor();
       return;
@@ -736,7 +746,7 @@
     ensureChain().then(function () {
       return window.ethereum.request({ method: "eth_accounts" });
     }).then(function (accounts) {
-      var selected = accounts && accounts[0] ? accounts[0] : "";
+      var selected = StillDoor.reported(accounts, "");
       var sent;
       if (!selected || StillDoor.isOff() || mine !== ticket) throw new Error("key");
       if (!key || key.toLowerCase() !== selected.toLowerCase()) {
@@ -880,7 +890,7 @@
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) disarm();
   });
-  /* The Walk and this page share one key. The provider's first account is that key. */
+  /* The Walk and this page share one key. The provider's reported account is that key. */
   function adopt(value) {
     if (!value) {
       if (!key) return;
@@ -907,9 +917,11 @@
     var eth = window.ethereum;
     if (!eth || !eth.request || key || StillDoor.isOff()) return;
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
+      var selected;
       if (key || StillDoor.isOff()) return;
-      if (!accounts || !accounts[0]) return;
-      adopt(accounts[0]);
+      selected = StillDoor.reported(accounts, "");
+      if (!selected) return;
+      adopt(selected);
     }).catch(function () {});
   }
 
@@ -934,7 +946,7 @@
       return;
     }
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
-      var selected = accounts && accounts[0] ? accounts[0] : "";
+      var selected = StillDoor.reported(accounts, "");
       if (selected) {
         if (StillDoor.isOff() && !key) return;
         adopt(selected);
@@ -944,8 +956,9 @@
       if (!saved || StillDoor.isOff() || didAsk) return;
       didAsk = true;
       eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
+        var now;
         if (StillDoor.isOff()) return;
-        var now = asked && asked[0] ? asked[0] : "";
+        now = StillDoor.reported(asked, "");
         if (now) adopt(now);
       }).catch(function (err) {
         if (err && err.code === 4001) setNote("declined");
@@ -961,7 +974,7 @@
     eth.on("accountsChanged", function (reported) {
       var hinted = reported && reported[0] ? reported[0] : "";
       eth.request({ method: "eth_accounts" }).then(function (accounts) {
-        var selected = accounts && accounts[0] ? accounts[0] : "";
+        var selected = StillDoor.reported(accounts, hinted);
         if (!selected) {
           dropKey();
           return;
@@ -985,6 +998,10 @@
   });
 
   window.addEventListener("pageshow", function () {
+    resume();
+  });
+
+  window.addEventListener("focus", function () {
     resume();
   });
 

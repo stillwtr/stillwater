@@ -214,6 +214,9 @@
     words.style.gap = "";
     words.style.transform = "";
     connectBtn.style.transform = "";
+    field.style.width = "";
+    field.style.minWidth = "";
+    field.style.maxWidth = "";
     door = narrowWalk() ? 0 : connectBtn.offsetWidth;
     cluster = words.offsetWidth;
     room = narrowWalk() ? (width - 8) : (width - (door * 2) - 12);
@@ -228,8 +231,15 @@
       words.style.transform = "scale(" + scale + ")";
       words.style.transformOrigin = "center center";
     }
-    if (!narrowWalk() || !field.hidden) return;
-    searchBox = searchBtn.getBoundingClientRect();
+    if (!narrowWalk()) return;
+    if (!field.hidden) {
+      field.style.width = "100%";
+      field.style.minWidth = "0";
+      field.style.maxWidth = "100%";
+      searchBox = field.getBoundingClientRect();
+    } else {
+      searchBox = searchBtn.getBoundingClientRect();
+    }
     connectBox = connectBtn.getBoundingClientRect();
     shift = (searchBox.left + searchBox.width / 2) - (connectBox.left + connectBox.width / 2);
     if (Math.abs(shift) >= 0.5) connectBtn.style.transform = "translateX(" + shift.toFixed(2) + "px)";
@@ -1252,6 +1262,7 @@
 
   function disconnectKey() {
     StillDoor.off(true);
+    StillDoor.release();
     setWallet("");
     closeVault();
     closeList();
@@ -1266,9 +1277,9 @@
       window.location.assign(DOOR);
       return;
     }
-    window.ethereum.request({ method: "eth_requestAccounts" }).then(function (accounts) {
-      liveAccounts = accounts || [];
-      setWallet(liveAccounts[0] || "");
+    StillDoor.ask().then(function (selected) {
+      liveAccounts = selected ? [selected] : [];
+      setWallet(selected || "");
       if (noteLine === "connect") setNote("");
       paintDoor();
       paintRole();
@@ -1821,7 +1832,7 @@
     arrows();
   }
 
-  /* A saved key is used only when it is the account the provider reports first. */
+  /* A saved key is kept only when it is the account the provider reports. */
   function resumeKey() {
     var saved = StillDoor.read();
     var eth = window.ethereum;
@@ -1831,7 +1842,7 @@
     }
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
       var list = accounts || [];
-      var selected = list[0] || "";
+      var selected = StillDoor.reported(list, "");
       liveAccounts = list;
       if (selected) {
         if (StillDoor.isOff() && !walletKey) {
@@ -1852,7 +1863,8 @@
       eth.request({ method: "eth_requestAccounts" }).then(function (asked) {
         if (StillDoor.isOff()) return;
         liveAccounts = asked || [];
-        if (liveAccounts[0]) adoptKey(liveAccounts[0]);
+        saved = StillDoor.reported(liveAccounts, "");
+        if (saved) adoptKey(saved);
         else {
           paintDoor();
           paintRole();
@@ -1871,6 +1883,10 @@
   });
 
   window.addEventListener("pageshow", function () {
+    resumeKey();
+  });
+
+  window.addEventListener("focus", function () {
     resumeKey();
   });
 
@@ -2479,7 +2495,7 @@
       if (StillDoor.isOff()) return Promise.reject(new Error("key"));
       return window.ethereum.request({ method: "eth_accounts" });
     }).then(function (accounts) {
-      var selected = accounts && accounts[0] ? accounts[0] : "";
+      var selected = StillDoor.reported(accounts, "");
       liveAccounts = accounts || [];
       if (!selected || StillDoor.isOff() || !sameAddr(selected, tx.from)) {
         if (selected && !StillDoor.isOff()) adoptKey(selected);
@@ -2898,7 +2914,7 @@
       var hinted = reported && reported[0] ? reported[0] : "";
       eth.request({ method: "eth_accounts" }).then(function (accounts) {
         var list = accounts || [];
-        var selected = list[0] || "";
+        var selected = StillDoor.reported(list, hinted);
         liveAccounts = list;
         if (!selected) {
           if (walletKey) dropWallet();
