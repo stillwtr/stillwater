@@ -1226,6 +1226,17 @@
     return false;
   }
 
+  /* A stale re-read must not hide the account a switch just named. */
+  function keepAccounts(list, selected) {
+    var i;
+    var next = list || [];
+    if (!selected) return next;
+    for (i = 0; i < next.length; i++) {
+      if (sameAddr(next[i], selected)) return next;
+    }
+    return [selected];
+  }
+
   function clearStaleNote() {
     if (noteLine === NO_HELD || noteLine === NO_LISTED || noteLine === "mailbox named" || noteLine === HALL_OUT || isScanNote(noteLine)) setNote("");
   }
@@ -1262,6 +1273,7 @@
 
   function disconnectKey() {
     StillDoor.off(true);
+    StillDoor.note("");
     StillDoor.release();
     setWallet("");
     closeVault();
@@ -1593,6 +1605,21 @@
     });
   }
 
+  /* Nonce, seed, block, and water threshold for the plate on screen. */
+  function plateLog(path, idn, who, nonce, block, term, datedBlock) {
+    var bytes = Plate.parseAddress(who);
+    var seed = Plate.derive(bytes).seed;
+    console.log(
+      path,
+      "token", idn,
+      "nonce", nonce,
+      "seed", Plate.bytesToHex(seed),
+      "block", block,
+      "datedBlock", datedBlock,
+      "water", Plate.waterTable(nonce, term > 0 ? term : 0)
+    );
+  }
+
   function openDatedLive(chain, contract, idn, token, mine) {
     var datedTag = "0x" + token.block.toString(16);
     var bytes = Plate.parseAddress(token.minter);
@@ -1607,6 +1634,7 @@
           var term;
           if (mine !== ticket) return;
           term = PlateFreeze.freezeTerm(dNonce, gap);
+          plateLog("live", idn, token.minter, liveNonce, "latest", term, token.block);
           setPaint("open");
           index = idn;
           show(bytes, liveNonce, token.minter, word(idn), term);
@@ -1687,6 +1715,7 @@
       night = token.block - 1;
       return datedCount(chain, token.minter, "0x" + night.toString(16)).then(function (nonce) {
         if (mine !== ticket) return;
+        plateLog("dated", idn, token.minter, nonce, night, 0, token.block);
         mark("dated");
         index = idn;
         show(Plate.parseAddress(token.minter), nonce, token.minter, word(idn));
@@ -1832,7 +1861,7 @@
     arrows();
   }
 
-  /* A saved key is kept only when it is the account the provider reports. */
+  /* A saved key is kept when it is the account the provider reports. */
   function resumeKey() {
     var saved = StillDoor.read();
     var eth = window.ethereum;
@@ -1843,7 +1872,7 @@
     eth.request({ method: "eth_accounts" }).then(function (accounts) {
       var list = accounts || [];
       var selected = StillDoor.reported(list, "");
-      liveAccounts = list;
+      liveAccounts = keepAccounts(list, selected);
       if (selected) {
         if (StillDoor.isOff() && !walletKey) {
           paintDoor();
@@ -2912,10 +2941,17 @@
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (reported) {
       var hinted = reported && reported[0] ? reported[0] : "";
+      StillDoor.note(hinted);
       eth.request({ method: "eth_accounts" }).then(function (accounts) {
         var list = accounts || [];
-        var selected = StillDoor.reported(list, hinted);
-        liveAccounts = list;
+        var selected;
+        if (!StillDoor.current(hinted)) return;
+        if (!hinted) {
+          if (walletKey) dropWallet();
+          return;
+        }
+        selected = StillDoor.reported(list, hinted);
+        liveAccounts = keepAccounts(list, selected);
         if (!selected) {
           if (walletKey) dropWallet();
           return;
@@ -2923,11 +2959,12 @@
         if (StillDoor.isOff() && !walletKey) return;
         adoptKey(selected);
       }).catch(function () {
-        liveAccounts = reported || [];
+        if (!StillDoor.current(hinted)) return;
         if (!hinted) {
           if (walletKey) dropWallet();
           return;
         }
+        liveAccounts = reported || [];
         if (StillDoor.isOff() && !walletKey) return;
         adoptKey(hinted);
       });

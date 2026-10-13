@@ -177,18 +177,17 @@
     key = value || "";
     StillDoor.write(key);
     if (key) StillDoor.off(false);
+    mintBtn.textContent = "mint";
     if (!key) {
       clearAddress();
       connectBtn.textContent = "connect";
       connectBtn.setAttribute("aria-pressed", "false");
       mintBtn.hidden = false;
-      mintBtn.textContent = "connect wallet";
       return;
     }
     showAddress();
     connectBtn.textContent = "disconnect";
     connectBtn.setAttribute("aria-pressed", "true");
-    mintBtn.textContent = "mint";
   }
 
   function markCopied() {
@@ -712,6 +711,7 @@
 
   function disconnect() {
     StillDoor.off(true);
+    StillDoor.note("");
     StillDoor.release();
     ticket += 1;
     heldProof = null;
@@ -728,7 +728,7 @@
 
   function mint() {
     if (!key) {
-      connect();
+      setNote("connect wallet");
       return;
     }
     if (!window.ethereum) {
@@ -937,7 +937,7 @@
     showHallOut(false);
   }
 
-  /* A saved key is used only when it is the account the provider reports first. */
+  /* A saved key is kept when it is the account the provider reports. */
   function resume() {
     var saved = StillDoor.read();
     var eth = window.ethereum;
@@ -973,8 +973,15 @@
     if (!eth || !eth.on) return;
     eth.on("accountsChanged", function (reported) {
       var hinted = reported && reported[0] ? reported[0] : "";
+      StillDoor.note(hinted);
       eth.request({ method: "eth_accounts" }).then(function (accounts) {
-        var selected = StillDoor.reported(accounts, hinted);
+        var selected;
+        if (!StillDoor.current(hinted)) return;
+        if (!hinted) {
+          dropKey();
+          return;
+        }
+        selected = StillDoor.reported(accounts, hinted);
         if (!selected) {
           dropKey();
           return;
@@ -982,6 +989,7 @@
         if (StillDoor.isOff() && !key) return;
         adopt(selected);
       }).catch(function () {
+        if (!StillDoor.current(hinted)) return;
         if (!hinted) {
           dropKey();
           return;
