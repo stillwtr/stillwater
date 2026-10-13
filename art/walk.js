@@ -202,7 +202,7 @@
 
   /* The mode cluster stays centered on the plate. Disconnect keeps the plate's right edge.
      A narrow plate tightens the cluster so the two do not meet.
-     On a narrow viewport connect sits under SEARCH, and under the open field. */
+     On a narrow viewport connect stays under the word SEARCH. */
   function placeRows() {
     var words, width, door, cluster, room, scale, searchBox, connectBox, shift;
     words = modeBar.querySelector(".words");
@@ -236,10 +236,8 @@
       field.style.width = "100%";
       field.style.minWidth = "0";
       field.style.maxWidth = "100%";
-      searchBox = field.getBoundingClientRect();
-    } else {
-      searchBox = searchBtn.getBoundingClientRect();
     }
+    searchBox = searchBtn.getBoundingClientRect();
     connectBox = connectBtn.getBoundingClientRect();
     shift = (searchBox.left + searchBox.width / 2) - (connectBox.left + connectBox.width / 2);
     if (Math.abs(shift) >= 0.5) connectBtn.style.transform = "translateX(" + shift.toFixed(2) + "px)";
