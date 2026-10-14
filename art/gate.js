@@ -1143,7 +1143,22 @@ if (freezeSheet.indexOf("clock.js") >= 0 || freezeSheet.indexOf("PlateClock") >=
 if (freezeSheet.indexOf("FAIL-ARCHIVE") < 0) fail("freeze sheet hides a missing archive");
 vm.runInContext(freezeSrc, ctx);
 var Freeze = ctx.PlateFreeze;
-if (!Freeze || Freeze.freezeTerm(0, 0) !== 0) fail("gap 0 still freezes");
+function freezeLaw(text) {
+  var at = text.indexOf("function freezeTerm");
+  var end = text.indexOf("\n  function ", at + 1);
+  return text.slice(at, end).split("g.Plate.floorLog2").join("floorLog2");
+}
+if (freezeLaw(src) !== freezeLaw(freezeSrc)) fail("Walk freeze and the recipe freeze differ");
+if (!Freeze || Freeze.DAY !== 7200) fail("a day is not 7200 blocks");
+if (Freeze.freezeTerm(0, 0) !== 0) fail("gap 0 still freezes");
+if (Freeze.freezeTerm(0, 1) !== 0) fail("one block freezes the plate");
+if (Freeze.freezeTerm(0, Freeze.DAY - 1) !== 0) fail("a fresh date freezes the same day");
+if (Freeze.freezeTerm(0, Freeze.DAY) !== 1) fail("a day of quiet does not start");
+if (Freeze.freezeTerm(0, 7 * Freeze.DAY) !== 3) fail("a week of quiet is not visible");
+if (Freeze.freezeTerm(0, Freeze.MONTH) !== 4) fail("a month of quiet is not clear");
+if (Freeze.freezeTerm(0, Freeze.MONTH) - Freeze.freezeTerm(1, Freeze.MONTH) > 2) fail("one send melts more than two steps");
+if (Freeze.freezeTerm(0, 7 * Freeze.DAY) - Freeze.freezeTerm(1, 7 * Freeze.DAY) > 2) fail("one send melts more than two steps");
+if (Plate.freezeTerm(0, 7 * Freeze.DAY) !== Freeze.freezeTerm(0, 7 * Freeze.DAY)) fail("the plate freeze left the Walk");
 if (Freeze.freezeTerm(0, 4 * Freeze.YEAR) <= Freeze.freezeTerm(0, Freeze.MONTH)) fail("a long quiet does not deepen");
 var stone = Plate.indices(morning, 4096, 0, 0);
 if (!waterSame(stone, blot4096) || Plate.countWater(stone) !== Plate.countWater(blot4096)) fail("freeze changed the dated still");

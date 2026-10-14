@@ -241,6 +241,16 @@
 
   var NEAR = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+  /* One day is 7200 blocks. Sends after the date melt the cut. */
+  function freezeTerm(dNonce, gapBlocks) {
+    var day, grown, sent;
+    if (!(gapBlocks > 0) || dNonce < 0) return 0;
+    day = 7200;
+    grown = floorLog2(Math.floor(gapBlocks / day) + 1);
+    sent = floorLog2(dNonce + 1);
+    return Math.floor(grown / (1 + sent));
+  }
+
   function waterTable(nonce, freezeTerm) {
     /* s = floor(log2(nonce+1)), no cap.
        1 nicks, 64 is the first modest well, 256 is still that country,
@@ -707,6 +717,7 @@
     leadCount: leadCount,
     crawls: crawls,
     basinStats: basinStats,
+    freezeTerm: freezeTerm,
     waterTable: waterTable,
     parseAddress: parseAddress,
     checksumState: checksumState,

@@ -1,31 +1,31 @@
 /* How far the live lantern sinks after a snap.
    Stone (the dated still, the blot sheet) passes freezeTerm 0.
-   Quiet years deepen the cut. Transactions after the snap melt it. */
+   Quiet is the blocks since the date. One day is 7200 blocks.
+   Transactions after the snap melt the cut. */
 (function (g) {
-  var MONTH = 30 * 24 * 3600;
+  var DAY = 7200;
 
-  function freezeTerm(dNonce, gapTime) {
-    var months, gapSteps, sent, step;
-    if (!(gapTime > 0) || dNonce < 0) return 0;
-    months = Math.floor(gapTime / MONTH);
-    if (months < 1) months = 1;
-    gapSteps = g.Plate.floorLog2(months + 1);
+  function freezeTerm(dNonce, gapBlocks) {
+    var day, grown, sent;
+    if (!(gapBlocks > 0) || dNonce < 0) return 0;
+    day = 7200;
+    grown = g.Plate.floorLog2(Math.floor(gapBlocks / day) + 1);
     sent = g.Plate.floorLog2(dNonce + 1);
-    step = 11;
-    return Math.floor((gapSteps * step) / (1 + sent));
+    return Math.floor(grown / (1 + sent));
   }
 
-  function liveTable(liveNonce, dNonce, gapTime) {
-    return g.Plate.waterTable(liveNonce, freezeTerm(dNonce, gapTime));
+  function liveTable(liveNonce, dNonce, gapBlocks) {
+    return g.Plate.waterTable(liveNonce, freezeTerm(dNonce, gapBlocks));
   }
 
-  function indices(addressBytes, liveNonce, dNonce, gapTime) {
-    return g.Plate.indices(addressBytes, liveNonce, 0, freezeTerm(dNonce, gapTime));
+  function indices(addressBytes, liveNonce, dNonce, gapBlocks) {
+    return g.Plate.indices(addressBytes, liveNonce, 0, freezeTerm(dNonce, gapBlocks));
   }
 
   g.PlateFreeze = {
-    MONTH: MONTH,
-    YEAR: 365 * 24 * 3600,
+    DAY: DAY,
+    MONTH: 30 * DAY,
+    YEAR: 365 * DAY,
     freezeTerm: freezeTerm,
     liveTable: liveTable,
     indices: indices

@@ -1539,50 +1539,8 @@
     });
   }
 
-  function hexBlock(n) {
-    return "0x" + n.toString(16);
-  }
-
   function rpcValue(chain, method, params) {
     return ask(chain, method, params, 0, true);
-  }
-
-  /* The block where this key's nonce reached its latest count, then the quiet since that block. */
-  function quietGap(chain, address) {
-    return Promise.all([
-      rpc(chain, "eth_blockNumber", []),
-      count(chain, address, "latest")
-    ]).then(function (parts) {
-      var hi = parseInt(parts[0], 16);
-      var nonce = parts[1];
-      if (!(hi >= 0) || !(nonce >= 1)) throw new Error("gap");
-      return findSend(chain, address, nonce, 0, hi).then(function (block) {
-        return Promise.all([
-          rpcValue(chain, "eth_getBlockByNumber", [hexBlock(block), false]),
-          rpcValue(chain, "eth_getBlockByNumber", [hexBlock(hi), false])
-        ]).then(function (blocks) {
-          var sent = parseInt(blocks[0] && blocks[0].timestamp, 16);
-          var now = parseInt(blocks[1] && blocks[1].timestamp, 16);
-          if (!(sent >= 0) || !(now >= sent)) throw new Error("gap");
-          return now - sent;
-        });
-      });
-    });
-  }
-
-  function findSend(chain, address, nonce, lo, hi) {
-    if (lo > hi) return Promise.reject(new Error("gap"));
-    if (lo === hi) {
-      return count(chain, address, hexBlock(lo)).then(function (n) {
-        if (n < nonce) throw new Error("gap");
-        return lo;
-      });
-    }
-    var mid = lo + Math.floor((hi - lo) / 2);
-    return count(chain, address, hexBlock(mid)).then(function (n) {
-      if (n >= nonce) return findSend(chain, address, nonce, lo, mid);
-      return findSend(chain, address, nonce, mid + 1, hi);
-    });
   }
 
   function showUnread(token, idn, mine, chain, contract) {
@@ -1628,11 +1586,14 @@
         if (mine !== ticket) return;
         dNonce = liveNonce - datedNonce;
         if (!(dNonce >= 0)) return showUnread(token, idn, mine, chain, contract);
-        return quietGap(chain, token.minter).then(function (gap) {
-          var term;
+        return rpc(chain, "eth_blockNumber", []).then(function (hex) {
+          var latest, gapBlocks, term;
           if (mine !== ticket) return;
-          term = PlateFreeze.freezeTerm(dNonce, gap);
-          plateLog("live", idn, token.minter, liveNonce, "latest", term, token.block);
+          latest = parseInt(hex, 16);
+          if (!(latest >= token.block)) return showUnread(token, idn, mine, chain, contract);
+          gapBlocks = latest - token.block;
+          term = PlateFreeze.freezeTerm(dNonce, gapBlocks);
+          plateLog("live", idn, token.minter, liveNonce, latest, term, token.block);
           setPaint("open");
           index = idn;
           show(bytes, liveNonce, token.minter, word(idn), term);
