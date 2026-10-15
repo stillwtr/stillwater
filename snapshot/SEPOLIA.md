@@ -27,7 +27,7 @@ The tiny root is three keys, sorted ascending. Testing only. Not the mainnet wal
 Token 1 is minted and dated. Minter, owner, title, and dated-by are the treasury. This machine can sign only as the treasury. The treasury count was raised to 62 before the mint so the shutter plate would be nonce 63, the first nonce where this key shows water. The other two keys were not signed.
 
 - Mint tx: `0x1d2374aeea44617d1544ccf9f10cc80261f53ddf331e46809a6bfe54357d5a01`
-- Mint block: 11917349
+- Mint block: 11916837
 - Mint gas: 910081
 - Count after the mint, and at block 11916845: 63
 - Date tx: `0x10e03752e36e57c2fea52c302901a631b17d86530ed1e31148a3921ea932ab20`
