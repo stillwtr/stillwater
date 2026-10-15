@@ -1,10 +1,10 @@
 # Sepolia
 
-This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The real root is the mainnet root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument.
+This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The tiny root below is for testing only. It is not the mainnet walker root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument. The Walk's pinned Sepolia address is still the previous hall. Open this hall with the contract in the URL.
 
-- Stillwater: `0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465`
-- Deploy tx: `0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59`
-- Block: 11901405
+- Stillwater: `0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4`
+- Deploy tx: `0x58c51a7aa9cdfda2f5edb1f2a3a764be6cf4b6c198d357215886c8f9041fcaff`
+- Block: 11916797
 - Gas used: 19252085
 - Status: success
 - Deployer / treasury / owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
@@ -14,15 +14,51 @@ This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, an
 - viaIR: false
 - nextId: 1
 
-https://sepolia.etherscan.io/address/0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465
+https://sepolia.etherscan.io/address/0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4
 
-https://sepolia.etherscan.io/tx/0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59
+https://sepolia.etherscan.io/tx/0x58c51a7aa9cdfda2f5edb1f2a3a764be6cf4b6c198d357215886c8f9041fcaff
 
-The tiny root is three keys, sorted ascending. The Walk points here. The mint page follows the contract in the URL.
+The tiny root is three keys, sorted ascending. Testing only. Not the mainnet walker root.
 
 - `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - `0x63dAE8be19A773493a11AEd1996899Ec6cd55F45`
 - `0xd934CC70B1b06256581527a534285f5bd6A7eDc7`
+
+Token 1 is minted and dated. Minter, owner, title, and dated-by are the treasury. This machine can sign only as the treasury. The treasury count was raised to 62 before the mint so the shutter plate would be nonce 63, the first nonce where this key shows water. The other two keys were not signed.
+
+- Mint tx: `0x1d2374aeea44617d1544ccf9f10cc80261f53ddf331e46809a6bfe54357d5a01`
+- Mint block: 11917349
+- Mint gas: 910081
+- Count after the mint, and at block 11916845: 63
+- Date tx: `0x10e03752e36e57c2fea52c302901a631b17d86530ed1e31148a3921ea932ab20`
+- Date block: 11916846
+- Date gas: 242871
+- Count at block 11916846: 64
+- Seed: `c940268f5cbfab967dc0a3b1944dd81cdcc41409dab3ade00c648cdabe7ba85a`
+- Palette: Ice
+- Water at nonce 63 and at nonce 64, freeze 0: 11 cells, 0.1%, table 94
+
+The dated plate reads the count in the block before the date block. That count is 63. One block after the date the live view still used freeze 0, because a day is 7200 blocks. Nonce 64 paints the same plate as nonce 63.
+
+https://sepolia.etherscan.io/tx/0x1d2374aeea44617d1544ccf9f10cc80261f53ddf331e46809a6bfe54357d5a01
+
+https://sepolia.etherscan.io/tx/0x10e03752e36e57c2fea52c302901a631b17d86530ed1e31148a3921ea932ab20
+
+## Previous test hall
+
+`0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465` is the previous test hall. Same bytecode shape, price 0, same treasury, same three-key root. The Walk's pinned Sepolia address is still this contract.
+
+- Deploy tx: `0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59`
+- Block: 11901405
+- Gas used: 19252085
+- Status: success
+- Tiny root: `0xa58168e3afcda5f29139c04aa6b55317cabf96c8d548ec27d0528170f96c6ea9`
+
+https://sepolia.etherscan.io/address/0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465
+
+https://sepolia.etherscan.io/tx/0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59
+
+The tiny root is the same three keys.
 
 Token 1 is minted and dated. Minter, owner, title, and dated-by are the treasury. Mailbox is unset. The dated plate is the treasury's count in the block before the date block.
 
@@ -51,9 +87,9 @@ Then `date(2)`:
 
 `0x60c757ba0000000000000000000000000000000000000000000000000000000000000002`
 
-## Previous test hall
+## Hall before that
 
-`0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5` is the previous test hall, and the pre-fix example. Same bytecode shape, price 0, same treasury. Its tiny root was `0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3`. Print 1 there stays parked. The Walk no longer points here.
+`0xd6d50260f93e3f5fDB1D8f71378BC6707e009BE5` is the hall before that, and the pre-fix example. Same bytecode shape, price 0, same treasury. Its tiny root was `0x1d0ca95df59b56df48da6b95332d774d49f31e97718fb0dd4a03b8976f358bd3`. Print 1 there stays parked. The Walk no longer points here.
 
 - Deploy tx: `0x39a2291607385224bee01e39938d47f14c6e2fd6374bcbb4b589f9a2fe48ec77`
 - Block: 11900379
@@ -142,5 +178,6 @@ Creates that ran out of gas and left no code.
 - `0x7cb7922C4136327990519D962c49bd967BF7A3d8` tx `0x9d942d27bb48e5f7486a82c4addb9537bb401028bcb0a31ab369a0e4e0a39f55`
 - `0x2602d9C92bdc08861240524bA39fe8c8Ca4CB15c` tx `0x0fa2fdaec1274a1551df2ef2f1317842ae3c66074c41e0d2ab3d4cc44aa4a1dc`
 - `0xFA4bC74f5d16a0c7DCe6AC065019337DaFBBE377` tx `0xcf4b42193e4b5d99074c25a0249e94f13f632e386a412df8c659f0caa307f487`
+- `0xBcDA33b8B6E20160f8BE629Ba99a798172517d16` tx `0x285b1cb5ed5ec28eb2d6e6551f247cb1df023f8b9ae8c62e2178a55e39e7e5a9`
 
 A mint at nonce 20 also ran out of gas and did not create print 1: `0x088b0c45740912fb051eef7f4dc62a77073a656201f878e1ddc934c31d6fbfe5`. The mint above is the one that landed.
