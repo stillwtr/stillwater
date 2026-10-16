@@ -1,5 +1,7 @@
 (function () {
   var STILL = "";
+  var SEPOLIA = "0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4";
+  var MAINNET_STILL = "0x47FA611Bb47f2172b99135D6c00dC5555ca230C1";
   var CHAIN = "0x1";
   var SUPPLY = 512;
   var PRICE = "0xeebe0b40e8000";
@@ -68,18 +70,20 @@
     return "walk.html?chain=" + chain + "&contract=" + STILL + "&id=" + id + "&mode=live";
   }
 
-  /* Bare mint.html leaves STILL empty. A contract in the URL is the hall. */
+  /* The hall is pinned. chain=sepolia selects Sepolia. A contract in the URL is ignored. */
   function applyHallQuery() {
     var q = new URLSearchParams(location.search);
     var chain = (q.get("chain") || "").toLowerCase();
-    var contract = q.get("contract") || "";
-    if (!/^0x[0-9a-fA-F]{40}$/.test(contract)) return;
-    STILL = contract;
-    priceWei = null;
     if (chain === "sepolia") {
+      STILL = SEPOLIA;
       CHAIN = "0xaa36a7";
       RPCS = SEPOLIA_RPCS;
+    } else {
+      STILL = MAINNET_STILL;
+      CHAIN = "0x1";
+      RPCS = MAINNET_RPCS;
     }
+    priceWei = null;
   }
 
   var HALL_OUT = "this key is not in the hall";
