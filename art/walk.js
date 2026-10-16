@@ -1656,7 +1656,8 @@
       setNote(NO_PRINT);
       return;
     }
-    readCached(chain, contract, idn).then(function (token) {
+    /* A read from before the date stays cached as undated. Confirm once before leaving Dated. */
+    function paintDated(token) {
       var night;
       if (mine !== ticket) return;
       if (token.block === 0) {
@@ -1688,7 +1689,17 @@
           key: ""
         });
       });
-    }).catch(function (err) {
+    }
+    function loadDated(fresh) {
+      var key = chain + ":" + contract.toLowerCase() + ":" + idn;
+      if (fresh) delete cache[key];
+      return readCached(chain, contract, idn).then(function (token) {
+        if (mine !== ticket) return;
+        if (!fresh && token.block === 0) return loadDated(true);
+        return paintDated(token);
+      });
+    }
+    loadDated(false).catch(function (err) {
       if (mine !== ticket) return;
       if (err && err.why === "none") {
         if (contract) emptyHall();
