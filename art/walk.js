@@ -59,7 +59,7 @@
   var note = document.getElementById("note");
   var field = document.getElementById("field");
   var EXAMPLE = "0xd934CC70B1b06256581527a534285f5bd6A7eDc7";
-  var SEPOLIA = "0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465";
+  var SEPOLIA = "0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4";
   var MAINNET_STILL = "0x47FA611Bb47f2172b99135D6c00dC5555ca230C1";
   var DOOR = "https://metamask.app.link/dapp/stillwtr.github.io/stillwater/art/walk.html";
   var CHAIN_ID = { mainnet: "0x1", sepolia: "0xaa36a7" };

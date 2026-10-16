@@ -1,6 +1,6 @@
 # Sepolia
 
-This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The tiny root below is for testing only. It is not the mainnet walker root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument. The Walk's pinned Sepolia address is still the previous hall. Open this hall with the contract in the URL.
+This hall. Chain id 11155111. Price is 0. The bytecode has list, buy, cancel, and the hard vault. It is a test hall. The tiny root below is for testing only. It is not the mainnet walker root `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. That root was not the constructor argument. The Walk's pinned Sepolia address is this hall. Date and park open here.
 
 - Stillwater: `0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4`
 - Deploy tx: `0x58c51a7aa9cdfda2f5edb1f2a3a764be6cf4b6c198d357215886c8f9041fcaff`
@@ -46,7 +46,7 @@ https://sepolia.etherscan.io/tx/0x10e03752e36e57c2fea52c302901a631b17d86530ed1e3
 
 ## Previous test hall
 
-`0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465` is the previous test hall. Same bytecode shape, price 0, same treasury, same three-key root. The Walk's pinned Sepolia address is still this contract.
+`0x6B9264A5d731EDE4F65b91add5Ec7e8aE8ceC465` is the previous test hall. Same bytecode shape, price 0, same treasury, same three-key root. The Walk pin is no longer this contract. It can be viewed. Date and park stay closed.
 
 - Deploy tx: `0x50c5fcf59654626688af02b5c983be9cc9ebd0f58e0b3cbfbbd7e9dce2707f59`
 - Block: 11901405
