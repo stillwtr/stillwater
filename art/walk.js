@@ -203,9 +203,9 @@
 
   /* The mode cluster stays centered on the plate. Disconnect keeps the plate's right edge.
      A narrow plate tightens the cluster so the two do not meet.
-     On a narrow viewport connect stays under the word SEARCH. */
+     On a narrow viewport SEARCH is centered on the plate, and connect stays under it. */
   function placeRows() {
-    var words, width, door, cluster, room, scale, searchBox, connectBox, shift;
+    var words, width, door, cluster, room, scale, plateBox, nudge, searchBox, connectBox, shift;
     words = modeBar.querySelector(".words");
     width = canvas.parentElement.offsetWidth;
     if (!(width >= 1)) return;
@@ -238,7 +238,14 @@
       field.style.minWidth = "0";
       field.style.maxWidth = "100%";
     }
+    plateBox = canvas.parentElement.getBoundingClientRect();
     searchBox = searchBtn.getBoundingClientRect();
+    nudge = (plateBox.left + plateBox.width / 2) - (searchBox.left + searchBox.width / 2);
+    if (Math.abs(nudge) >= 0.5) {
+      words.style.transform = "translateX(" + nudge.toFixed(2) + "px)" +
+        (words.style.transform ? " " + words.style.transform : "");
+      searchBox = searchBtn.getBoundingClientRect();
+    }
     connectBox = connectBtn.getBoundingClientRect();
     shift = (searchBox.left + searchBox.width / 2) - (connectBox.left + connectBox.width / 2);
     if (Math.abs(shift) >= 0.5) connectBtn.style.transform = "translateX(" + shift.toFixed(2) + "px)";
