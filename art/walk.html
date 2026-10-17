@@ -42,6 +42,22 @@
       text-decoration: none;
       cursor: pointer;
     }
+    .foot {
+      flex-shrink: 0;
+      padding: 0.7rem 1rem 0.85rem;
+      text-align: center;
+    }
+    .mark {
+      font-family: ui-monospace, "Liberation Mono", monospace;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: none;
+      text-decoration: none;
+      color: var(--quiet);
+      cursor: pointer;
+    }
+    .mark:hover, .mark:focus { color: var(--quiet); text-decoration: none; }
     .note {
       min-height: 1em;
       margin: 0;
@@ -243,6 +259,7 @@
         align-items: center;
         justify-content: center;
       }
+      .foot { margin-top: auto; }
       .threshold {
         width: 100%;
         max-width: 100%;
@@ -265,9 +282,15 @@
       }
       .role { order: 3; }
       .vault { order: 4; }
-      /* Disconnect sits under list / date / park, centered. */
-      #connect {
+      /* One sentence, above disconnect: the empty room, the scan, and Loading. */
+      .note {
         order: 5;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 1rem;
+      }
+      #connect {
+        order: 6;
         position: static;
         top: auto;
         right: auto;
@@ -343,8 +366,12 @@
       <input id="list-price" autocomplete="off" spellcheck="false" aria-label="price" placeholder="0.00420">
       <button type="button" id="list-confirm">confirm</button>
     </p>
+    <p class="note" id="note"></p>
   </div>
-  <p class="note" id="note"></p>
+  <footer class="foot">
+    <!-- Placeholder until the note URL is given. -->
+    <a class="mark" href="https://x.com/A_is_A" rel="noopener noreferrer">@A_is_A</a>
+  </footer>
   <script src="keccak256.js"></script>
   <script src="palettes.js"></script>
   <script src="render.js"></script>

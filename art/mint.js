@@ -42,6 +42,7 @@
   var canvas = document.getElementById("pool");
   var ROWS = [1, 256, 4096];
   var cells = [];
+  var gridPaint = 0;
   var figureToken = 0;
   var key = "";
   var proofsReady = false;
@@ -375,10 +376,12 @@
     while (cell > 16 && (3 * (cell + lip) + 2 * gap) > availW) cell -= 1;
     size = String(cell) + "px";
     gridEl.style.gridTemplateColumns = "repeat(3, max-content)";
+    gridEl.style.minHeight = "0px";
     for (i = 0; i < cells.length; i++) {
       cells[i].canvas.style.width = size;
       cells[i].canvas.style.height = size;
     }
+    gridEl.style.minHeight = gridEl.offsetHeight + "px";
   }
 
   function fit() {
@@ -424,20 +427,29 @@
     gridEl.hidden = true;
   }
 
+  /* Empty frames hold the grid. Each plate replaces its own frame. */
   function showGrid() {
-    var i, cell;
+    var gen;
     disarm();
     pool.hidden = true;
     gridEl.hidden = false;
     if (checkRow) checkRow.hidden = false;
     if (key) showAddress();
     else clearAddress();
-    for (i = 0; i < cells.length; i++) {
+    fit();
+    gen = ++gridPaint;
+    function step(i) {
+      var cell;
+      if (gen !== gridPaint || gridEl.hidden) return;
+      if (i >= cells.length) return;
       cell = cells[i];
       cell.phase = 0;
       Plate.paint(cell.canvas, cell.bytes, cell.nonce, 0);
+      if (i + 1 < cells.length) requestAnimationFrame(function () { step(i + 1); });
     }
-    fit();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { step(0); });
+    });
   }
 
   function showPriceLine() {

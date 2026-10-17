@@ -110,6 +110,7 @@
   var wNonce = document.getElementById("w-nonce");
   var wWater = document.getElementById("w-water");
   var whisperEl = document.getElementById("whisper");
+  var ownerCopyTimer = null;
   var modeBar = document.getElementById("mode-bar");
   var hall = { chain: "mainnet", contract: "", nextId: 0, known: false };
   var whisperToken = 0;
@@ -546,6 +547,73 @@
     wWater.removeAttribute("data-value");
     wPrice.removeAttribute("data-value");
     whisperEl.hidden = true;
+  }
+
+  function shortAddr(text) {
+    var s = (text || "").trim();
+    if (s.slice(0, 2) === "0x" || s.slice(0, 2) === "0X") s = s.slice(2);
+    if (s.length < 10) return "";
+    return "0x" + s.slice(0, 6) + "…" + s.slice(s.length - 4);
+  }
+
+  function copyOwnerFallback(text) {
+    var area = document.createElement("textarea");
+    var ok = false;
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "0";
+    area.style.left = "0";
+    area.style.width = "2em";
+    area.style.height = "2em";
+    area.style.padding = "0";
+    area.style.border = "none";
+    area.style.outline = "none";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, text.length);
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(area);
+    try { wId.focus({ preventScroll: true }); } catch (e2) { /* quiet */ }
+    return ok;
+  }
+
+  function markOwnerCopied(full) {
+    var short = shortAddr(full);
+    var token;
+    if (!short || wId.hidden) return;
+    token = ++whisperToken;
+    restoreWhisper(wPal);
+    restoreWhisper(wNonce);
+    restoreWhisper(wWater);
+    restoreWhisper(wPrice);
+    wId.classList.remove("fade");
+    wId.textContent = short + " copied";
+    if (ownerCopyTimer) clearTimeout(ownerCopyTimer);
+    ownerCopyTimer = setTimeout(function () {
+      ownerCopyTimer = null;
+      if (token !== whisperToken) return;
+      restoreWhisper(wId);
+    }, 1100);
+  }
+
+  function copyOwner() {
+    var full;
+    var clip = null;
+    var legacy = false;
+    if (wId.hidden || !(index >= 1)) return;
+    if (!plateRole || plateRole.id !== index || !plateRole.owner) return;
+    full = plateRole.owner;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      try { clip = navigator.clipboard.writeText(full); } catch (e) { clip = null; }
+    }
+    legacy = copyOwnerFallback(full);
+    if (legacy) markOwnerCopied(full);
+    if (clip && typeof clip.then === "function") {
+      clip.then(function () { markOwnerCopied(full); }, function () {});
+    }
   }
 
   function showWhisperName(el) {
@@ -2872,7 +2940,11 @@
   prevBtn.addEventListener("click", function () { step(-1); });
   nextBtn.addEventListener("click", function () { step(1); });
 
-  [wId, wPal, wNonce, wWater, wPrice].forEach(function (el) {
+  wId.addEventListener("click", function (event) {
+    event.stopPropagation();
+    copyOwner();
+  });
+  [wPal, wNonce, wWater, wPrice].forEach(function (el) {
     el.addEventListener("click", function (event) {
       event.stopPropagation();
       showWhisperName(el);
