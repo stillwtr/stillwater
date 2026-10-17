@@ -249,6 +249,16 @@
       padding: 0.2rem 1rem 0.05rem;
       gap: 0.22rem;
     }
+    /* Wide windows: the plate and its lines sit high. The spare room is above the footer.
+       The gap under the top line matches the gap under the plate. */
+    @media (min-width: 481px) {
+      .court {
+        flex: 0 0 auto;
+        padding-top: 0.35rem;
+      }
+      .foot { margin-top: auto; }
+      .mark { font-size: 0.65rem; }
+    }
     @media (max-width: 480px) {
       html, body { overflow-x: hidden; }
       .court {
