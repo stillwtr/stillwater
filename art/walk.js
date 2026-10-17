@@ -44,6 +44,7 @@
   var NO_PRINT = "there is no dated print";
   var NO_LISTED = "there is no listed print";
   var NO_HELD = "there is no held print";
+  var CONNECT_FIRST = "connect first";
   var SCAN_LISTED = "scanning for listed prints";
   var SCAN_HELD = "scanning for held prints";
   var SCAN_DATED = "scanning for dated prints";
@@ -360,7 +361,7 @@
     field.value = "";
     if (back && back.index >= 1) index = back.index;
     else if (back && back.key) searchKey = back.key;
-    if (actionNote() || noteLine === "connect" || isScanNote(noteLine)) setNote("");
+    if (actionNote() || noteLine === "connect" || noteLine === CONNECT_FIRST || isScanNote(noteLine)) setNote("");
     if (which !== "dated" && noteLine === NO_PRINT) setNote("");
     if (which !== "listed" && noteLine === NO_LISTED) setNote("");
     if (which !== "held" && noteLine === NO_HELD) setNote("");
@@ -1360,7 +1361,7 @@
     StillDoor.ask().then(function (selected) {
       liveAccounts = selected ? [selected] : [];
       setWallet(selected || "");
-      if (noteLine === "connect") setNote("");
+      if (noteLine === "connect" || noteLine === CONNECT_FIRST) setNote("");
       paintDoor();
       paintRole();
       readHeld();
@@ -1879,7 +1880,7 @@
       return;
     }
     setWallet(value);
-    if (noteLine === "connect") setNote("");
+    if (noteLine === "connect" || noteLine === CONNECT_FIRST) setNote("");
     paintDoor();
     paintRole();
     readHeld();
@@ -2203,7 +2204,7 @@
     }
     if (kind === "held" && !walletKey) {
       light("held");
-      setNote("connect");
+      setNote(CONNECT_FIRST);
       return;
     }
     light(kind);
