@@ -263,21 +263,25 @@
         align-self: center;
         box-sizing: border-box;
       }
+      .role { order: 3; }
+      .vault { order: 4; }
+      /* Disconnect sits under list / date / park, centered. */
       #connect {
-        order: 3;
+        order: 5;
         position: static;
         top: auto;
         right: auto;
         left: auto;
         transform: none;
+        display: block;
+        width: 100%;
         margin-left: 0;
         margin-right: 0;
         align-self: center;
+        text-align: center;
         font-size: 0.62rem;
         letter-spacing: 0.12em;
       }
-      .role { order: 4; }
-      .vault { order: 5; }
     }
   </style>
 </head>

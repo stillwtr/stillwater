@@ -556,6 +556,67 @@
     });
   }
 
+  function callAt(url, method, params) {
+    return postNode(url, method, params).then(function (body) {
+      if (!body || body.error || body.result == null) throw new Error("node");
+      return body.result;
+    });
+  }
+
+  /* After a mint, a public node can still be behind the wallet. Read the nonce
+     and the minted id from one host that has reached the mint block. */
+  function readCaught(addr, minBlock, i) {
+    var url;
+    if (!i) i = 0;
+    if (i >= RPCS.length) return Promise.reject(new Error("stale"));
+    url = RPCS[i];
+    return callAt(url, "eth_blockNumber", []).then(function (hex) {
+      if (parseInt(hex, 16) < minBlock) throw new Error("behind");
+      return Promise.all([
+        callAt(url, "eth_getTransactionCount", [checksum(addr), "latest"]),
+        callAt(url, "eth_call", [{ to: STILL, data: "0xeb15aad2" + padWord(addr) }, "latest"])
+      ]);
+    }).then(function (pair) {
+      var n = parseInt(pair[0], 16);
+      var id = parseInt(pair[1], 16);
+      if (!(n >= 0) || !(id >= 1)) throw new Error("stale");
+      return { n: n, id: id };
+    }).catch(function () {
+      return readCaught(addr, minBlock, i + 1);
+    });
+  }
+
+  function revealMint(addr, mine, hash, left) {
+    var bytes = Plate.parseAddress(addr);
+    if (!bytes || Plate.checksumState(addr) === "checksum") {
+      hidePlate();
+      setNote("checksum");
+      return;
+    }
+    if (left == null) left = 8;
+    receiptOf(hash).then(function (receipt) {
+      var minBlock = parseInt(receipt && receipt.blockNumber, 16);
+      if (!(minBlock >= 0)) throw new Error("block");
+      return readCaught(addr, minBlock);
+    }).then(function (got) {
+      if (!got || mine !== ticket) return;
+      setNote("");
+      mintBtn.hidden = true;
+      showMintNumber(got.id);
+      showPlate(bytes, got.n);
+      showWalk(got.id);
+    }).catch(function () {
+      if (mine !== ticket) return;
+      if (left <= 1) {
+        drawKey(addr, mine);
+        return;
+      }
+      setTimeout(function () {
+        revealMint(addr, mine, hash, left - 1);
+      }, 600);
+    });
+  }
+
   function drawKey(addr, mine) {
     var bytes = Plate.parseAddress(addr);
     if (!bytes || Plate.checksumState(addr) === "checksum") {
@@ -777,13 +838,15 @@
         method: "eth_sendTransaction",
         params: [sent]
       }).then(function (hash) {
-        return settled(hash);
+        return settled(hash).then(function () {
+          return hash;
+        });
       });
-    }).then(function () {
+    }).then(function (hash) {
       mintBtn.setAttribute("aria-pressed", "false");
       setNote("");
       readLeft();
-      drawKey(key, ticket);
+      revealMint(key, ticket, hash);
     }).catch(function (err) {
       mintBtn.setAttribute("aria-pressed", "false");
       if (err && (err.message === "key" || err.message === "wait" || err.message === "list" || err.message === "proof")) return;
