@@ -187,7 +187,8 @@
       clearAddress();
       connectBtn.textContent = "connect";
       connectBtn.setAttribute("aria-pressed", "false");
-      mintBtn.hidden = false;
+      mintBtn.hidden = true;
+      if ((note.textContent || "") === "ineligible") setNote("");
       return;
     }
     showAddress();
@@ -476,7 +477,7 @@
     pool.hidden = true;
     hideWalk();
     showPriceLine();
-    mintBtn.hidden = false;
+    mintBtn.hidden = !heldProof;
     showGrid();
   }
 
@@ -676,6 +677,7 @@
       return;
     }
     mintBtn.hidden = true;
+    if ((note.textContent || "") === "ineligible") setNote("");
     drawKey(key, mine);
     if (!proofsReady) return;
     if (!proofsOk) {
@@ -924,7 +926,7 @@
       if (msg.ready === false) {
         proofsOk = false;
         proofsReady = true;
-        listNote = msg.match ? "the list does not match" : "the list did not load";
+        listNote = msg.match ? "ineligible" : "the list did not load";
         if (key) applyKey();
         if (checkWait) runCheck(checkWait);
         return;
@@ -939,11 +941,15 @@
       if (msg.miss || !msg.proof) {
         if (heldProof) return;
         heldProof = null;
-        showHallOut(true);
+        mintBtn.hidden = true;
+        if (!note.textContent || note.textContent === HALL_OUT || note.textContent === "ineligible") {
+          setNote("ineligible");
+        }
         return;
       }
       heldProof = msg.proof;
       showHallOut(false);
+      if (note.textContent === "ineligible") setNote("");
       drawKey(pending.addr, pending.ticket);
     };
     if (!STILL) {

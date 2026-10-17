@@ -201,11 +201,11 @@
     return window.matchMedia("(max-width: 480px)").matches;
   }
 
-  /* The mode cluster stays centered on the plate. Disconnect keeps the plate's right edge.
-     A narrow plate tightens the cluster so the two do not meet.
-     On a narrow viewport SEARCH is centered on the plate, and connect stays under it. */
+  /* The mode words stay centered on the plate. A narrow plate tightens them.
+     On a narrow viewport SEARCH is centered on the plate.
+     Connect sits in the footer, above the mark. */
   function placeRows() {
-    var words, width, door, cluster, room, scale, plateBox, nudge, searchBox, connectBox, shift;
+    var words, width, cluster, room, scale, plateBox, nudge, searchBox;
     words = modeBar.querySelector(".words");
     width = canvas.parentElement.offsetWidth;
     if (!(width >= 1)) return;
@@ -218,9 +218,8 @@
     field.style.width = "";
     field.style.minWidth = "";
     field.style.maxWidth = "";
-    door = narrowWalk() ? 0 : connectBtn.offsetWidth;
     cluster = words.offsetWidth;
-    room = narrowWalk() ? (width - 8) : (width - (door * 2) - 12);
+    room = narrowWalk() ? (width - 8) : (width - 12);
     if (!(room >= 1)) room = 1;
     if (cluster > room) {
       words.style.letterSpacing = "0.06em";
@@ -244,11 +243,7 @@
     if (Math.abs(nudge) >= 0.5) {
       words.style.transform = "translateX(" + nudge.toFixed(2) + "px)" +
         (words.style.transform ? " " + words.style.transform : "");
-      searchBox = searchBtn.getBoundingClientRect();
     }
-    connectBox = connectBtn.getBoundingClientRect();
-    shift = (searchBox.left + searchBox.width / 2) - (connectBox.left + connectBox.width / 2);
-    if (Math.abs(shift) >= 0.5) connectBtn.style.transform = "translateX(" + shift.toFixed(2) + "px)";
   }
 
   function snow() {
