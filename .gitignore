@@ -21,3 +21,6 @@ docs/
 
 # Address dumps. Roots and the leaf formula stay in the markdown.
 snapshot/*.json
+
+# Working notes. Not the public record.
+/Stillwater_Notes.txt

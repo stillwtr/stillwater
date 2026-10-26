@@ -1,16 +1,26 @@
 # Snapshot
 
+The list mainnet will use has 25,236 keys. The root is `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. `script/Mainnet.s.sol` passes that root. Mainnet is not deployed. The address file for those 25,236 keys is not in the repository.
+
+Read the counts in this order. Each pass has its own root. The last one is the mainnet root.
+
+1. Transfers on the halls in the window: 22,895 keys. The card is `snapshot/stats.md`. The root is `snapshot/root.txt`.
+2. Nonce 0 off, the deny list off, twelve farm desks off, and one named 453-key factory off: 21,501 keys. The list is `snapshot/walkers.txt`. The card is `snapshot/walkers-stats.md`. The root is `snapshot/root-walkers.txt`, `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`.
+3. Walkers from the LondonTokenBase clones, with the same cuts: 25,236 keys. The counts are in the London section below. `script/Mainnet.s.sol` passes this root. The address file is not in the repository.
+
+The rest of this note is how those passes were built.
+
 Window: 1 × 365 days, ending at the snapshot block. The year length is 365 × 86400 seconds, the same year the refreeze clock uses.
 
 - Snapshot block: 26070219
 - Snapshot time: 2026-09-27T17:15:23.000Z
 - From block: 23455765
 - From time: 2025-09-27T17:15:11.000Z
-- Log RPC: mainnet.gateway.tenderly.co. ethereum-rpc.publicnode.com refuses archive getLogs without a token, and eth.drpc.org free tier will not route a year-old getLogs. Nonce reads use the same Tenderly endpoint, with dRPC as failover.
+- Transfer logs and nonce counts were read at the snapshot block. A full-history node is required. A recent-state endpoint will not serve a year of logs.
 - Leaf: keccak256(bytes.concat(keccak256(abi.encode(address))))
 - Addresses sorted ascending (lowercase hex). Pairs use OpenZeppelin's sorted keccak. An odd node at the end of a level is lifted, not hashed with itself.
-- ERC-721 Transfer on these cores indexes the token id as the fourth topic. That topic is not an address. Only from and to are kept. ERC-1155 keeps operator, from, and to. Values under 2^128 left behind by an earlier read of that topic were removed before the root (token ids, and the burn address 0xdead).
-- A published conduit list was not on disk, so none were dropped. The zero address is dropped.
+- ERC-721 Transfer on these cores indexes the token id as the fourth topic. That topic is not an address. Only from and to are kept. ERC-1155 keeps operator, from, and to. An earlier read kept values under 2^128 from that fourth topic. Those were token ids, and the burn address 0xdead. They were removed before the root.
+- No separate conduit list was applied. The zero address is dropped.
 
 ## Contracts
 
@@ -27,9 +37,7 @@ Window: 1 × 365 days, ending at the snapshot block. The year length is 365 × 8
 
 ## Walkers
 
-A walker has nonce >= 1 at block 26070219 and was already in allowlist.json. Nonce 0 is dropped. A contract is dropped only when it is on the deny list below. A nonempty eth_getCode is not a reason to drop.
-
-Leaf and pair stay the ones the tests use. allowlist.json is unchanged.
+A walker has sent at least one transaction by block 26070219. Nonce 0 is dropped. A contract is dropped only when it is on the deny list below. Code at the address is not, by itself, a reason to drop.
 
 ### Deny list
 
@@ -84,7 +92,7 @@ Deny-list keys removed from the nonce >= 1 set: 7.
 
 First inbound funder is the earliest normal transfer with value above zero to the walker, at or before block 26070219, from Blockscout v2 sorted oldest first (one page, 50 rows). The internal-transfer endpoint was rate-limited, so an earlier internal funder is not seen. If that page has no paying transfer, the walker is a singleton. If the funder is on this list, the walker is also a singleton.
 
-CEX, bridge, and router tags from the same Etherscan label scrape, plus the four Uniswap routers:
+These are address counts inside the label files. They mark a funder. They are not a count of keys removed. CEX, bridge, and router tags from the Etherscan label scrape, plus the four Uniswap routers:
 
 - 0x-protocol: 58
 - 1inch: 34
@@ -131,7 +139,7 @@ CEX, bridge, and router tags from the same Etherscan label scrape, plus the four
 
 ## Hall clean
 
-Farm-ish desks are off the list: at least 10 keys, and a majority of first payments inside one 24-hour window. Twelve such desks, 247 keys. The 453-key factory is off as well. Its busiest day was 20 keys, so the 24-hour rule did not catch it. That funder never walked a hall and was not added. Five other parents had already walked and were already on the list. One parent had walked and was restored. Seven parents were not added. Singletons and smaller desks stay. Known exchanges, bridges, and routers stay off. Nonce 0 stays off. The allowlist is not read by the walk page.
+Farm-ish desks are off the list: at least 10 keys, and a majority of first payments inside one 24-hour window. Twelve such desks, 247 keys. The 453-key factory is off as well. Its busiest day was 20 keys, so the 24-hour rule did not catch it. That funder never walked a hall and was not added. Five other parents had already walked and were already on the list. One parent had walked and was restored. Seven parents were not added. Singletons and smaller desks stay. Known exchanges, bridges, and routers stay off. Nonce 0 stays off. The page builds a proof from `snapshot/walkers.txt`, which is this 21,501-key list. The Sepolia hall uses three test keys, so this file does not mint there.
 
 - keys before: 22200
 - keys dropped: 699
@@ -166,16 +174,15 @@ Compared with `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d663
 | Clusters | 17378 | 19975 |
 | Farm-ish clusters | 0 | 0 |
 
-London-only keys seen on the clones and not on the previous hall list: 4008. Nonce 0 dropped 107. The deny list dropped 0. Desks already off, or newly farm-ish, dropped 155. Previous-root keys removed because their desk became farm-ish: 11. Parents added because they walked a hall: 0.
+London-only keys seen on the clones and not on the previous hall list: 4008. Nonce 0 dropped 107. The deny list dropped 0. Desks already off, or newly farm-ish, dropped 155. Previous-root keys removed because their desk became farm-ish: 11. Parents added because they walked a hall: 0. Fleck is open water above 0 and under 2% of the cells. Pond is 2% and up.
 
 ## Deploy wiring
 
-Constructor argument `merkleRoot` is this root. One immutable. No setter. No second root. Leaf unchanged. Mainnet is not deployed.
+Constructor argument `merkleRoot` is the 25,236-key root above. One immutable. No setter. No second root. Leaf unchanged. Mainnet is not deployed.
 
-`0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`
-
-Sepolia `0x8DE89DFe42d1d5F5FD23910B98f8f66239bD5124` uses a two-key root, not this walker root. Mainnet walker proofs do not apply there. `0x1b8EdEAF2CE1bA591a6F812ae52024F77e229A34` is stale. Its bytecode is not this hall.
+Sepolia `0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4` uses a three-key test root, not this walker root. A mainnet proof does not mint there. Older Sepolia addresses are in `snapshot/SEPOLIA.md`.
 
 - solc: 0.8.37
+- optimizer: 200 runs
 - viaIR: false
 

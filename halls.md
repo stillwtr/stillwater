@@ -1,8 +1,8 @@
 # Halls
 
-A hall is a mainnet contract whose artwork transfers can put a key on the Stillwater list. The list is activity over one year, not a balance. A transfer's from and to are kept. A mint counts, because the sender is the zero address and the receiver is the minter. An approval does not. The zero address is not a leaf. Someone who held a work all year and never moved it is absent.
+A hall is a mainnet contract whose artwork transfers can put a key on the Stillwater list. Stillwater stores the root. It does not call these halls. The year, the counts, and the root are in `snapshot/SNAPSHOT.md`.
 
-The year ends at snapshot block 26070219. The window and the root are in `snapshot/SNAPSHOT.md`. The contract stores that root. It does not call these halls.
+The list is activity over one year, not a balance. The year ends at snapshot block 26070219. A transfer's from and to are kept. A mint counts, because the sender is the zero address and the receiver is the minter. An approval does not. The zero address is not a leaf. Someone who held a work all year and never moved it is absent.
 
 ## Art Blocks flagship
 
@@ -38,7 +38,7 @@ verse.works does not use one contract. These two count:
 - `0xec43E92046C1527586dFAF02031622C30AF9A1d6` — Verse Works
 - `0xD1240d3F8e7ccDfC5592f094BEFF4a51eFAF310B` — Verse Works v0.3.0
 
-Later projects are clones of `LondonTokenBase`. Their factory addresses are not pinned, so those clones are not in the list. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
+Later projects are clones of `LondonTokenBase`. The factory is `0x0FD8989ddF25d8504F22a9Dee6865216760FfEfb`. A clone is kept when that factory emits `NewCollection` for it at or before the snapshot block, and the clone's code is the EIP-1167 proxy of the implementation the factory stores. Transfers on those clones use the same year as the other halls. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
 
 Left out:
 
