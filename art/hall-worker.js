@@ -1,7 +1,7 @@
-/* Builds one hall proof from snapshot/walkers.txt. The contract root is the lock. */
+/* Builds one hall proof from snapshot/hall-walkers.txt. The contract root is the lock. */
 importScripts("keccak256.js");
 
-var ROOT = "0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634";
+var ROOT = "0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3";
 var addrs = [];
 var layers = [];
 
@@ -125,7 +125,7 @@ function begin(text, root) {
 
 function loadFile(root) {
   if (started) return;
-  fetch("../snapshot/walkers.txt").then(function (res) {
+  fetch("../snapshot/hall-walkers.txt").then(function (res) {
     if (!res.ok) throw new Error("missing");
     return res.text();
   }).then(function (text) {
