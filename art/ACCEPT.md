@@ -1,8 +1,8 @@
 # Accept
 
-This is the drawing rule, not the contract. `node art/gate.js` prints PASS only when every law holds. A plate can pass and still be wrong to the eye.
+This is the drawing rule, not the contract. `node art/gate.js` prints PASS only when every law below holds. A plate can pass the check and still look wrong.
 
-The plate is a frozen pond. How busy the key has been is how much water is open. The drawing is 128 by 128, full frame. One comparison per cell: height plus a row dither against the water table. Water is frost that failed. Slush is frost breaking. Snow is frost that held. There is no mask and no halo drawn around one.
+The plate is a frozen pond. How busy the key has been is how much water is open. The drawing is 128 by 128, and the frame stays full. Each cell is one comparison: its height, plus a small row offset, against the water table. Water is frost that failed. Slush is frost that is breaking. Snow is frost that held. Nothing is drawn as a mask or a halo around the water.
 
 ## Laws
 

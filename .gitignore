@@ -24,3 +24,6 @@ snapshot/*.json
 
 # Working notes. Not the public record.
 /Stillwater_Notes.txt
+/snapshot/FORK.md
+/art/Examples/
+/art/sheet-allow.html

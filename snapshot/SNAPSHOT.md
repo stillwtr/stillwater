@@ -1,26 +1,26 @@
 # Snapshot
 
-The list mainnet will use has 25,236 keys. The root is `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. `script/Mainnet.s.sol` passes that root. Mainnet is not deployed. The address file for those 25,236 keys is not in the repository.
+The hall uses 25,236 keys. The root is `0x2c80ef0c0a1d75f53ef180ed4fcc4bf30f0836b25e8e69625bceb5f3a0a9a5f3`. The keys are in `snapshot/hall-walkers.txt`. The same list, with the inner nodes of the tree, is `snapshot/hall-proofs.bin`. `node script/hall-proofs.js` rebuilds that bin. The hall is `0x189739F6f054feCdeb765E9BfF9ad972a094db94`.
 
-Read the counts in this order. Each pass has its own root. The last one is the mainnet root.
+Read the counts in this order. Each pass has its own root. The last one is the root on the hall.
 
 1. Transfers on the halls in the window: 22,895 keys. The card is `snapshot/stats.md`. The root is `snapshot/root.txt`.
 2. Nonce 0 off, the deny list off, twelve farm desks off, and one named 453-key factory off: 21,501 keys. The list is `snapshot/walkers.txt`. The card is `snapshot/walkers-stats.md`. The root is `snapshot/root-walkers.txt`, `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`.
-3. Walkers from the LondonTokenBase clones, with the same cuts: 25,236 keys. The counts are in the London section below. `script/Mainnet.s.sol` passes this root. The address file is not in the repository.
+3. Walkers from the LondonTokenBase clones, with the same cuts: 25,236 keys. The counts are in the London section below. This is the list on the hall.
 
 The rest of this note is how those passes were built.
 
-Window: 1 × 365 days, ending at the snapshot block. The year length is 365 × 86400 seconds, the same year the refreeze clock uses.
+The window is one year of 365 days, ending at the snapshot block. The year is 365 × 86400 seconds. That is the same year length the refreeze clock uses.
 
 - Snapshot block: 26070219
 - Snapshot time: 2026-09-27T17:15:23.000Z
 - From block: 23455765
 - From time: 2025-09-27T17:15:11.000Z
 - Transfer logs and nonce counts were read at the snapshot block. A full-history node is required. A recent-state endpoint will not serve a year of logs.
-- Leaf: keccak256(bytes.concat(keccak256(abi.encode(address))))
-- Addresses sorted ascending (lowercase hex). Pairs use OpenZeppelin's sorted keccak. An odd node at the end of a level is lifted, not hashed with itself.
-- ERC-721 Transfer on these cores indexes the token id as the fourth topic. That topic is not an address. Only from and to are kept. ERC-1155 keeps operator, from, and to. An earlier read kept values under 2^128 from that fourth topic. Those were token ids, and the burn address 0xdead. They were removed before the root.
-- No separate conduit list was applied. The zero address is dropped.
+- Leaf: `keccak256(bytes.concat(keccak256(abi.encode(address))))`
+- Addresses are sorted from low to high as lowercase hex. Pairs are sorted, then hashed, the same way OpenZeppelin does it. An odd node at the end of a row is carried up as it is. It is not hashed with itself.
+- On these ERC-721 cores, the fourth topic of a Transfer is the token id. That topic is not an address. Only `from` and `to` are kept. ERC-1155 keeps the operator, `from`, and `to`. An earlier read kept values under 2^128 from that fourth topic. Those were token ids, and the burn address `0xdead`. They were removed before the root.
+- There is no extra marketplace-conduit list. The zero address is dropped.
 
 ## Contracts
 
@@ -37,11 +37,11 @@ Window: 1 × 365 days, ending at the snapshot block. The year length is 365 × 8
 
 ## Walkers
 
-A walker has sent at least one transaction by block 26070219. Nonce 0 is dropped. A contract is dropped only when it is on the deny list below. Code at the address is not, by itself, a reason to drop.
+A walker has sent at least one transaction by block 26070219. Nonce 0 is dropped. A contract is dropped only when it is on the deny list below. Code at the address is not, by itself, a reason to drop it.
 
 ### Deny list
 
-Hall contracts are the seven cores in the section above, the Transient Labs factory, LondonTokenFactory, every implementation in indexer/snapshot.js, every clone in snapshot/.tl-clones.json, the LondonTokenBase implementation, and every clone in snapshot/.london-clones-kept.json.
+Hall contracts on this list are the seven cores in the section above, the Transient Labs factory, LondonTokenFactory, the LondonTokenBase implementation, and the clone contracts those factories had deployed by the snapshot block. The working dumps of those clone addresses are not in this repository. The keys that stayed are in `snapshot/hall-walkers.txt`.
 
 Official Art Blocks minters, from Art Blocks MINTER_SUITE.md and deployments/minters/mainnet/DEPLOYMENTS.md:
 
@@ -90,9 +90,9 @@ Deny-list keys removed from the nonce >= 1 set: 7.
 
 ### Funder ignore list
 
-First inbound funder is the earliest normal transfer with value above zero to the walker, at or before block 26070219, from Blockscout v2 sorted oldest first (one page, 50 rows). The internal-transfer endpoint was rate-limited, so an earlier internal funder is not seen. If that page has no paying transfer, the walker is a singleton. If the funder is on this list, the walker is also a singleton.
+The first funder is the earliest normal transfer with value above zero to the walker, at or before block 26070219. The read was Blockscout v2, oldest first, one page of 50 rows. The internal-transfer feed was rate-limited, so an older internal payment was not seen. If that page has no paying transfer, the walker counts as alone. If the funder is on this list, the walker also counts as alone.
 
-These are address counts inside the label files. They mark a funder. They are not a count of keys removed. CEX, bridge, and router tags from the Etherscan label scrape, plus the four Uniswap routers:
+These are address counts inside the label files. They mark a funder. They are not a count of keys removed. The tags are exchanges, bridges, and routers from the Etherscan label files, plus the four Uniswap routers:
 
 - 0x-protocol: 58
 - 1inch: 34
@@ -139,7 +139,7 @@ These are address counts inside the label files. They mark a funder. They are no
 
 ## Hall clean
 
-Farm-ish desks are off the list: at least 10 keys, and a majority of first payments inside one 24-hour window. Twelve such desks, 247 keys. The 453-key factory is off as well. Its busiest day was 20 keys, so the 24-hour rule did not catch it. That funder never walked a hall and was not added. Five other parents had already walked and were already on the list. One parent had walked and was restored. Seven parents were not added. Singletons and smaller desks stay. Known exchanges, bridges, and routers stay off. Nonce 0 stays off. The page builds a proof from `snapshot/walkers.txt`, which is this 21,501-key list. The Sepolia hall uses three test keys, so this file does not mint there.
+Farm desks are off the list: at least 10 keys, and most of the first payments inside one 24-hour window. Twelve such desks, 247 keys. The 453-key factory is off as well. Its busiest day was 20 keys, so the 24-hour rule did not catch it. That funder never walked a hall and was not added. Five other parents had already walked and were already on the list. One parent had walked and was put back. Seven parents were not added. Keys that are alone, and desks smaller than 10, stay. Known exchanges, bridges, and routers stay off. Nonce 0 stays off. This pass is the 21,501-key list in `snapshot/walkers.txt`. It is not the list on the hall. The Sepolia hall uses three test keys, so this file does not mint there.
 
 - keys before: 22200
 - keys dropped: 699
@@ -150,7 +150,7 @@ Farm-ish desks are off the list: at least 10 keys, and a majority of first payme
 
 The factory is pinned. Its 558 LondonTokenBase clones were read on the original window, block 23455765 through 26070219. 0 clones were rejected. Parties on those transfers: 6769. Keys already on the previous root are unchanged by that overlap.
 
-Nonce 0 is dropped. The deny list is the one already in use, plus this factory, its implementation, and these clones. Farm-ish desks and the named 453-key factory stay off. A new desk is off on the same rule: at least 10 keys, and a majority of first payments inside one 24-hour window. The mainnet script passes this root. Mainnet is not deployed.
+Nonce 0 is dropped. The deny list is the one already in use, plus this factory, its implementation, and these clones. Farm desks and the named 453-key factory stay off. A new desk is off on the same rule: at least 10 keys, and most of the first payments inside one 24-hour window. This root is the one stored on the hall.
 
 - keys before: 21501
 - keys after: 25236
@@ -172,17 +172,20 @@ Compared with `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d663
 | Water fleck | 11917 | 14365 |
 | Water pond | 6899 | 7634 |
 | Clusters | 17378 | 19975 |
-| Farm-ish clusters | 0 | 0 |
+| Farm desks | 0 | 0 |
 
-London-only keys seen on the clones and not on the previous hall list: 4008. Nonce 0 dropped 107. The deny list dropped 0. Desks already off, or newly farm-ish, dropped 155. Previous-root keys removed because their desk became farm-ish: 11. Parents added because they walked a hall: 0. Fleck is open water above 0 and under 2% of the cells. Pond is 2% and up.
+Keys seen only on the clones, and not on the previous list: 4008. Nonce 0 dropped 107 of them. The deny list dropped 0. Desks already off, or newly over the farm rule, dropped 155. Keys removed from the previous root because their desk crossed that rule: 11. Parents added because they walked a hall: 0. Fleck is open water above 0 and under 2% of the cells. Pond is 2% and up.
 
 ## Deploy wiring
 
-Constructor argument `merkleRoot` is the 25,236-key root above. One immutable. No setter. No second root. Leaf unchanged. Mainnet is not deployed.
+The constructor argument `merkleRoot` is the 25,236-key root above. It is fixed. There is no setter and no second root. The leaf is unchanged.
+
+The hall is `0x189739F6f054feCdeb765E9BfF9ad972a094db94`. The brush is `0xfE490952B4f16911a31f786E4a2Ab53C6601870D`. `setBrush` has been called once. `nonceProbe` is still unset. Both contracts are verified on Etherscan.
 
 Sepolia `0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4` uses a three-key test root, not this walker root. A mainnet proof does not mint there. Older Sepolia addresses are in `snapshot/SEPOLIA.md`.
 
 - solc: 0.8.37
 - optimizer: 200 runs
 - viaIR: false
+- EVM: osaka
 

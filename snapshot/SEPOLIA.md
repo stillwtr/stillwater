@@ -1,15 +1,17 @@
 # Sepolia
 
-Chain id 11155111. Price is 0. The Walk and the mint page use this hall when the link says `chain=sepolia`.
+This is the test hall, not the mainnet hall. The mainnet addresses are in the README.
 
-The root is three test keys. A mainnet proof will not mint here.
+Chain id 11155111. The price is 0. The Walk and the mint page use this hall when the link says `chain=sepolia`.
+
+The root is three test keys. A proof from the mainnet list will not mint here.
 
 - Hall: `0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4`
 - Deploy: `0x58c51a7aa9cdfda2f5edb1f2a3a764be6cf4b6c198d357215886c8f9041fcaff`, block 11916797
 - Treasury and owner: `0x08d97e624214f4Ca5283b47C11030AB71Bc7304D`
 - Root: `0xa58168e3afcda5f29139c04aa6b55317cabf96c8d548ec27d0528170f96c6ea9`
 - walkBase: `https://stillwtr.github.io/stillwater/art/walk.html`
-- Compiler: solc 0.8.37, optimizer 200 runs, viaIR off
+- Compiler: Solidity 0.8.37, optimizer 200 runs, via IR off, EVM osaka
 
 https://sepolia.etherscan.io/address/0x81236B313E25DfCb0D70AdA9A8D5B9f1970399b4
 

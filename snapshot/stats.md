@@ -1,6 +1,6 @@
 # Hall snapshot (1 year)
 
-This is an early count. It is not the list mainnet will use. That list, and its root, are at the top of `snapshot/SNAPSHOT.md`.
+This is an early count. It is not the list the hall uses. The live list and its root are at the top of `snapshot/SNAPSHOT.md`.
 
 count: 22895
 
@@ -12,14 +12,14 @@ Nonce at block 26070219 (`eth_getTransactionCount(addr, block)`).
 - p90 1986
 - max 585075
 
-s = floor(log2(nonce+1)). Low s is a quiet key. High s is a busy one.
+`s = floor(log2(nonce+1))`. A low `s` is a quiet key. A high `s` is a busy one. The plate uses this as the water table.
 
 - 0-4: 4802
 - 5-8: 10221
 - 9-12: 7699
 - 13+: 173
 
-Water is how much of the plate is open water, from the count already stored for these keys. 0% is empty. Fleck is above 0 and under 2%. Pond is 2% and up.
+Water is how much of the plate is open water. 0% is empty. Fleck is above 0 and under 2%. Pond is 2% and up.
 
 - 0%: 3517
 - fleck: 12391

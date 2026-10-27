@@ -1,8 +1,8 @@
 # Halls
 
-A hall is a mainnet contract whose artwork transfers can put a key on the Stillwater list. Stillwater stores the root. It does not call these halls. The year, the counts, and the root are in `snapshot/SNAPSHOT.md`.
+A hall is a mainnet contract. A transfer of its artwork can put a key on the Stillwater list. Stillwater stores only the root. It does not call these halls. The year, the counts, and the root are in `snapshot/SNAPSHOT.md`.
 
-The list is activity over one year, not a balance. The year ends at snapshot block 26070219. A transfer's from and to are kept. A mint counts, because the sender is the zero address and the receiver is the minter. An approval does not. The zero address is not a leaf. Someone who held a work all year and never moved it is absent.
+The list is activity over one year, not a balance. The year ends at snapshot block 26070219. A transfer keeps `from` and `to`. A mint counts, because the sender is the zero address and the receiver is the minter. An approval does not count. The zero address is not on the list. Someone who held a work all year and never moved it is absent.
 
 ## Art Blocks flagship
 
@@ -16,7 +16,7 @@ The list is activity over one year, not a balance. The year ends at snapshot blo
 
 These five are the flagship set. There is no flagship V2. In the Art Blocks table, V2 means Engine. Engine stays out. The Flex core stays in. It is the current flagship, not Engine Flex.
 
-Minter contracts are not halls. The artwork transfer is on the cores above.
+Minter contracts are not halls. The transfer that counts is on the cores above.
 
 - `0x234B25288011081817B5cC199C3754269cCb76D2`
 - `0x091dcd914fCEB1d47423e532955d1E62d1b2dAEf`
@@ -27,7 +27,7 @@ Minter contracts are not halls. The artwork transfer is on the cores above.
 
 ## Transient Labs
 
-Artist collections are clones. The shared implementation is not the hall. Transfers happen on the clone.
+Artist collections are clones. The shared implementation is not the hall. The transfer happens on the clone.
 
 The factory is the Transient Labs Universal Deployer, `0x7c24805454F7972d36BEE9D139BD93423AA29f3f`. A clone is kept when its type is `ERC721TL`, `ERC1155TL`, `ERC7160TL`, or `ERC7160TLEditions`, and its implementation is one of the deployed contracts in `Transient-Labs/tl-creator-contracts`. `TRACE`, rendering contracts, and the blocklist registry are not halls. Deploys from before this factory are not in the list.
 
@@ -38,7 +38,7 @@ verse.works does not use one contract. These two count:
 - `0xec43E92046C1527586dFAF02031622C30AF9A1d6` — Verse Works
 - `0xD1240d3F8e7ccDfC5592f094BEFF4a51eFAF310B` — Verse Works v0.3.0
 
-Later projects are clones of `LondonTokenBase`. The factory is `0x0FD8989ddF25d8504F22a9Dee6865216760FfEfb`. A clone is kept when that factory emits `NewCollection` for it at or before the snapshot block, and the clone's code is the EIP-1167 proxy of the implementation the factory stores. Transfers on those clones use the same year as the other halls. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
+Later projects are clones of `LondonTokenBase`. The factory is `0x0FD8989ddF25d8504F22a9Dee6865216760FfEfb`. A clone is kept when that factory emits `NewCollection` for it at or before the snapshot block, and the clone's code is the short proxy (EIP-1167) of the implementation the factory stores. Transfers on those clones use the same year as the other halls. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
 
 Left out:
 
