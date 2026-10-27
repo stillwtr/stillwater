@@ -12,7 +12,7 @@ One factory of 453 keys did not trip that one-day rule. Its busiest day was 20 k
 
 A parent funder is added only when that parent walked a hall in the same year and has sent at least one transaction. A factory that never walked is not added.
 
-These counts are the live list, after the Verse clones were included. The hall stores this root. The path from the earlier 21,501 keys is in `snapshot/SNAPSHOT.md`.
+These counts are the live list, after the LondonTokenBase clones were included. The hall stores this root. The path from the earlier 21,501 keys is in `snapshot/SNAPSHOT.md`.
 
 - keys before: 21501
 - farm desks before: 0

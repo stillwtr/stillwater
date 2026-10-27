@@ -38,13 +38,15 @@ verse.works does not use one contract. These two count:
 - `0xec43E92046C1527586dFAF02031622C30AF9A1d6` — Verse Works
 - `0xD1240d3F8e7ccDfC5592f094BEFF4a51eFAF310B` — Verse Works v0.3.0
 
-Later projects are clones of `LondonTokenBase`. The factory is `0x0FD8989ddF25d8504F22a9Dee6865216760FfEfb`. A clone is kept when that factory emits `NewCollection` for it at or before the snapshot block, and the clone's code is the short proxy (EIP-1167) of the implementation the factory stores. Transfers on those clones use the same year as the other halls. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
-
 Left out:
 
 - The VERSE ERC-20 at `0x249ca82617ec3dfb2589c4c17ab7ec9765350a18`
 - Art Blocks Engine `GenArt721CoreV2_VerseFlex` at `0xbb5471c292065d3b01b2e81e299267221ae9a250`
 - verse-xyz Hyperobject. No mainnet factory address is confirmed, and the paired token would be the wrong log.
+
+## London
+
+London is its own hall. The projects are clones of `LondonTokenBase`. The factory is `0x0FD8989ddF25d8504F22a9Dee6865216760FfEfb`. A clone is kept when that factory emits `NewCollection` for it at or before the snapshot block, and the clone's code is the short proxy (EIP-1167) of the implementation the factory stores. Transfers on those clones use the same year as the other halls. Those clones are what takes the list from 21,501 keys to 25,236. The labeled deployer `0x3F50c925e19a4c145378553a2e3E1d55BF554Cf5` is a wallet, not a hall.
 
 ## Also left out
 

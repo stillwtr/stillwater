@@ -26,7 +26,7 @@ The chain holds the tokens. The brush holds the recipe and the page. This site p
 
 ## The list
 
-A key is on the list if it walked an art hall during the year that ended at snapshot block 26070219. A hall is an Art Blocks flagship core, a Transient Labs collection, or Verse Works. A mint counts. A transfer counts. Holding a work all year and never moving it does not. The zero address is not on the list.
+A key is on the list if it walked an art hall during the year that ended at snapshot block 26070219. A hall is an Art Blocks flagship core, a Transient Labs collection, Verse Works, or a LondonTokenBase clone from the pinned factory. A mint counts. A transfer counts. Holding a work all year and never moving it does not. The zero address is not on the list.
 
 Exchanges, bridges, and routers stay off. So do groups funded like a farm: ten or more keys whose first payments mostly landed on the same day, and one named factory of 453 keys whose funder never walked a hall. Smaller groups stay.
 
@@ -40,7 +40,7 @@ That root locks 25,236 keys. The keys are in `snapshot/hall-walkers.txt`, one ad
 
 The mint page reads the root from the hall. It uses the bin only when the top hash equals that root. For one key, the page hashes the key the way the contract does, walks the stored siblings, and checks that the result is the hall root. A file that does not match is refused. The contract checks the same proof again when someone mints or buys. The page cannot make a stranger eligible.
 
-`snapshot/walkers.txt` is the earlier list, 21,501 keys, from before the Verse clones were added. Its root is `snapshot/root-walkers.txt`. `snapshot/root.txt` and `snapshot/stats.md` are earlier counts. They are not the live list.
+`snapshot/walkers.txt` is the earlier list, 21,501 keys, from before the LondonTokenBase clones were added. Verse Works is already in that list. Its root is `snapshot/root-walkers.txt`. `snapshot/root.txt` and `snapshot/stats.md` are earlier counts. They are not the live list.
 
 The Sepolia hall uses three test keys. A mainnet proof does not mint there.
 

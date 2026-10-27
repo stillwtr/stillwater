@@ -2,7 +2,7 @@
 
 This card matches `snapshot/walkers.txt`: 21,501 keys, root `0x6cece1d62b58afe3a6f7352024edd36e4a083d0d360d4d844ddd339dd90d6634`.
 
-This is the list from before the Verse clones were added. It is not the list on the hall. The live list has 25,236 keys. It is `snapshot/hall-walkers.txt`, and its root is at the top of `snapshot/SNAPSHOT.md`.
+This is the list from before the LondonTokenBase clones were added. Verse Works is already in it. It is not the list on the hall. The live list has 25,236 keys. It is `snapshot/hall-walkers.txt`, and its root is at the top of `snapshot/SNAPSHOT.md`.
 
 count: 21501
 previous: 22200
