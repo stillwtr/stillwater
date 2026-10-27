@@ -263,9 +263,12 @@
     mode = next === "dated" ? "dated" : (next ? "open" : "");
   }
 
-  /* One lit mode word. SEARCH stays lit while its field or its result is up. */
+  /* One lit mode word. SEARCH stays lit while its field or its result is up.
+     Leaving Held drops the line that belongs to that view. */
   function mark(which) {
-    lit = which || "";
+    var next = which || "";
+    if (next !== "held" && (noteLine === NO_HELD || noteLine === SCAN_HELD || noteLine === CONNECT_FIRST)) setNote("");
+    lit = next;
     liveBtn.setAttribute("aria-pressed", lit === "live" ? "true" : "false");
     datedBtn.setAttribute("aria-pressed", lit === "dated" ? "true" : "false");
     listedBtn.setAttribute("aria-pressed", lit === "listed" ? "true" : "false");
@@ -1483,16 +1486,17 @@
     });
   }
 
-  /* The address bar, not the default hall. A bare page has no set. */
+  /* The address bar names the hall. The default hall counts once this page has written it. */
   function inBar() {
     var q = query();
     if (!q.contract || !hall || !hall.known || !hall.contract) return false;
     return String(q.contract).toLowerCase() === String(hall.contract).toLowerCase();
   }
 
-  /* On when this plate has a contract and an id. They walk the lit mode's set. */
+  /* Shown once two prints exist. They walk the lit mode's set, in id order. */
   function arrows() {
-    var on = lit !== "search" && index >= 1 && !!(hall && hall.contract);
+    var many = !!(hall && hall.known && hall.nextId >= 2 && hall.contract);
+    var on = many && lit !== "search" && index >= 1;
     prevBtn.hidden = !on;
     nextBtn.hidden = !on;
     prevBtn.setAttribute("aria-disabled", on ? "false" : "true");
@@ -1555,10 +1559,19 @@
     writeUrl({ chain: hall.chain, contract: hall.contract });
   }
 
+  function barKey(q) {
+    if (q.key) return q.key;
+    var h = q.hash || "";
+    if (h.slice(0, 2) === "0x" || h.slice(0, 2) === "0X") return h;
+    return "";
+  }
+
+  /* No id and no key. The first minted print, or the example when the hall is empty. */
   function settleHall(q) {
-    if (!q.contract || q.id) return;
+    if (q.id || barKey(q)) return;
     if (!(hall.nextId >= 1)) {
-      emptyHall();
+      if (q.contract) emptyHall();
+      else openKey(EXAMPLE, "mainnet", null, false);
       return;
     }
     openLiveToken(hall.chain, hall.contract, 1);
@@ -1806,7 +1819,7 @@
   }
 
   function route(q) {
-    var key = q.key || ((q.hash.slice(0, 2) === "0x" || q.hash.slice(0, 2) === "0X") ? q.hash : "");
+    var key = barKey(q);
     var contract = q.contract;
     var chain = q.chain;
     if (!contract && chain === "sepolia" && q.id) contract = SEPOLIA;
@@ -1820,9 +1833,7 @@
       else openDated(chain, contract, q.id);
       return;
     }
-    if (contract && !key) return;
     if (key) openKey(key, chain || "mainnet", null, true);
-    else openKey(EXAMPLE, "mainnet", null, false);
   }
 
   function boot() {
@@ -1852,10 +1863,13 @@
         hall.known = true;
         arrows();
         readHeld();
-        if (q.contract && !q.id) {
+        if (q.id || barKey(q)) return;
+        if (q.contract) {
           writeUrl({ chain: hall.chain, contract: hall.contract });
           weather("open");
+          return;
         }
+        openKey(EXAMPLE, "mainnet", null, false);
       });
     }
     route(q);
@@ -2929,7 +2943,7 @@
     }
     closeFields();
     walkTicket += 1;
-    if (emptyLine(noteLine) || isScanNote(noteLine)) setNote("");
+    if (emptyLine(noteLine) || isScanNote(noteLine) || noteLine === CONNECT_FIRST) setNote("");
     mark("search");
     if (heldBytes && mode !== "dated") arm(heldBytes, heldNonce, heldPace);
     field.hidden = false;
