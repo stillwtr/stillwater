@@ -1823,7 +1823,8 @@
     var contract = q.contract;
     var chain = q.chain;
     if (!contract && chain === "sepolia" && q.id) contract = SEPOLIA;
-    if (!contract && q.still && q.id && MAINNET_STILL && chain !== "sepolia") {
+    /* A bare id is the mainnet hall. still=1 only freezes the plate. */
+    if (!contract && q.id && MAINNET_STILL && chain !== "sepolia") {
       contract = MAINNET_STILL;
       chain = chain || "mainnet";
     }
