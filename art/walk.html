@@ -237,16 +237,22 @@
     .note {
       padding: 0.35rem 1rem 0.85rem;
       color: var(--dim);
+    }
+    .note.fade {
+      opacity: 0;
       transition: opacity 280ms linear;
     }
-    .note.fade { opacity: 0; }
-    /* Controls under the plate rest after a still moment. The plate stays. */
+    /* Controls and the status line rest together. The plate stays. */
     .threshold button,
     #connect {
       opacity: 1;
     }
+    #note {
+      transition: none;
+    }
     body.rest .threshold button,
-    body.rest #connect {
+    body.rest #connect,
+    body.rest #note {
       opacity: 0;
       transition: opacity 400ms linear;
     }
