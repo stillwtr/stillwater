@@ -240,6 +240,16 @@
       transition: opacity 280ms linear;
     }
     .note.fade { opacity: 0; }
+    /* Controls under the plate rest after a still moment. The plate stays. */
+    .threshold button,
+    #connect {
+      opacity: 1;
+    }
+    body.rest .threshold button,
+    body.rest #connect {
+      opacity: 0;
+      transition: opacity 400ms linear;
+    }
     /* The park warning has to stay on screen with the box. The plate stays put. */
     body:has(#vault-row:not([hidden])) .note {
       padding: 0.05rem 1rem 0.08rem;
@@ -371,5 +381,23 @@
   <script src="fork.js"></script>
   <script src="door.js"></script>
   <script src="walk.js"></script>
+  <script>
+    (function () {
+      var wait = 4000;
+      var timer = 0;
+      function show() {
+        document.body.classList.remove("rest");
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function () {
+          timer = 0;
+          document.body.classList.add("rest");
+        }, wait);
+      }
+      document.addEventListener("pointermove", show, { passive: true });
+      document.addEventListener("pointerdown", show, { passive: true });
+      document.addEventListener("keydown", show);
+      show();
+    })();
+  </script>
 </body>
 </html>
